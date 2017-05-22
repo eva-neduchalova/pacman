@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Don't forget to set system property -DLog4jContextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector 
+	to make all loggers asynchronous. -->
+
+<Configuration>
+	<Appenders>
+
+		<!-- enable this appender in root logger on localhost -->
+		<Console name="stdout" target="SYSTEM_OUT">
+			<PatternLayout pattern="%-5p %d{yyyy-MM-dd HH:mm:ss} - %m%n" />
+		</Console>
+
+		<!-- Enable immediateFlush for staging environment -->
+		<RollingRandomAccessFile name="applicationLog"
+			fileName="/var/log/pacman/app.log"
+			filePattern="/var/log/pacman/$${date:yyyy-MM}/app-%d{yyyy-MM-dd}-%i.log.zip"
+			immediateFlush="true">
+
+			<PatternLayout pattern="%-5p %d{yyyy-MM-dd HH:mm:ss} - %m%n" />
+
+			<Policies>
+				<!-- rollover once a day at the end of a day because the most specific 
+					time unit in the date pattern (%d{yyyy-MM-dd}) is day (dd) -->
+				<TimeBasedTriggeringPolicy interval="1"
+					modulate="true" />
+				<!-- rollover when the log size reaches twenty megabytes -->
+				<SizeBasedTriggeringPolicy size="20 MB" />
+			</Policies>
+
+			<!-- keep up to 150 files before removing them, files with a higher index 
+				will be newer than files with a smaller index, compressionLevel 1 = best 
+				speed, works only for zip -->
+			<DefaultRolloverStrategy fileIndex="max" min="1"
+				max="150" compressionLevel="1" />
+		</RollingRandomAccessFile>
+
+
+	</Appenders>
+
+	<!-- all loggers are asynchronous, therefore location information is not 
+		passed to loggers by default (it can be enabled by setting includeLocation="true" 
+		for each async logger) -->
+	<Loggers>
+
+		<Root level="info">
+			<AppenderRef ref="applicationLog" />
+			<AppenderRef ref="stdout" />
+		</Root>
+
+	</Loggers>
+</Configuration>
