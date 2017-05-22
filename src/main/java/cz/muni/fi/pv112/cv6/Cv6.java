@@ -157,7 +157,6 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 
 
 
@@ -166,7 +165,7 @@ public class Cv6 {
     
     protected static final Logger logger = LoggerFactory.getLogger(Cv6.class);
 
-    private static final int NUMBER_OF_INSTANCES = StringUtils.countMatches(Arrays.toString(ApplicationContants.MAZE_DEFINITION_STRING), "X"); // 100;
+    private static final int NUMBER_OF_INSTANCES = StringUtils.countMatches(Arrays.toString(ApplicationConstants.MAZE_DEFINITION_STRING), "X"); // 100;
 
     private static final int SIZEOF_AXES_VERTEX = 6 * Float.BYTES;
     private static final int COLOR_OFFSET = 3 * Float.BYTES;
@@ -208,6 +207,7 @@ public class Cv6 {
     // our OpenGL resources
     private int axesBuffer;
     private int cubeBuffer;
+    private int ghostBuffer;
     private int dotBuffer;
     private int axesArray;
     private int cubeArray;
@@ -433,6 +433,29 @@ public class Cv6 {
             glfwPollEvents();
         }
     }
+    
+    private void loadGhost() throws IOException {
+        ObjLoader ghost = new ObjLoader(ApplicationConstants.PATH_TO_MODELS + "ghost.obj");
+        ghost.load();
+        int ghostBufferLength = 3 * 8 * ghost.getTriangleCount();
+        FloatBuffer ghostData = BufferUtils.createFloatBuffer(ghostBufferLength);
+        for (int f = 0; f < ghost.getTriangleCount(); f++) {
+            int[] pi = ghost.getVertexIndices().get(f);
+            int[] ni = ghost.getNormalIndices().get(f);
+            int[] ti = ghost.getTexcoordIndices().get(f);
+            for (int i = 0; i < 3; i++) {
+                float[] position = ghost.getVertices().get(pi[i]);
+                float[] normal = ghost.getNormals().get(ni[i]);
+                float[] texcoord = ghost.getTexcoords().get(ti[i]);
+                ghostData.put(position);
+                ghostData.put(normal);
+                ghostData.put(texcoord);
+            }
+        }
+        ghostData.rewind();
+        glBindBuffer(GL_ARRAY_BUFFER, ghostBuffer);
+        glBufferData(GL_ARRAY_BUFFER, ghostData, GL_STATIC_DRAW);
+    }
 
     private void init() {
         // empty scene color
@@ -443,10 +466,10 @@ public class Cv6 {
 
         // load GLSL program (vertex, fragment shaders) and textures
         try {
-            axesProgram = loadProgram( ApplicationContants.PATH_TO_SHADERS + "axes.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "axes.fs.glsl");
-            dotProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "dot.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "dot.fs.glsl");
-            cubeProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "cube.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "cube.fs.glsl");
-            woodTexture = loadTexture(ApplicationContants.PATH_TO_TEXTURES + "wood.jpg");
+            axesProgram = loadProgram( ApplicationConstants.PATH_TO_SHADERS + "axes.vs.glsl", ApplicationConstants.PATH_TO_SHADERS + "axes.fs.glsl");
+            dotProgram = loadProgram(ApplicationConstants.PATH_TO_SHADERS + "dot.vs.glsl", ApplicationConstants.PATH_TO_SHADERS + "dot.fs.glsl");
+            cubeProgram = loadProgram(ApplicationConstants.PATH_TO_SHADERS + "cube.vs.glsl", ApplicationConstants.PATH_TO_SHADERS + "cube.fs.glsl");
+            woodTexture = loadTexture(ApplicationConstants.PATH_TO_TEXTURES + "wood.jpg");
         } catch (IOException ex) {
             logger.error("it's broken", ex);
             System.exit(1);
@@ -493,7 +516,7 @@ public class Cv6 {
         int dotsCounter = 0;
         int x = 0;
         int y = 0;
-        for (String row : ApplicationContants.MAZE_DEFINITION_STRING) {
+        for (String row : ApplicationConstants.MAZE_DEFINITION_STRING) {
             x = 0;
             for (char c : row.toCharArray()) {
                 logger.info(String.format("_x, y, = %s, %s.", x, y));
@@ -506,6 +529,7 @@ public class Cv6 {
                 } else if ('.' == c) {
                     Vector3f dotLocation = new Vector3f((x - 4.5f) * 2, (y - 4.5f) * 2, 0);
                     new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
+                            .scale(0.25f, 0.25f, 0.25f)
                             .get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
                     dotsCounter++;
                 }
@@ -526,7 +550,7 @@ public class Cv6 {
         glBufferData(GL_ARRAY_BUFFER, AXES, GL_STATIC_DRAW);
 
         // load cube and fill buffer with cube data
-        cube = new ObjLoader(ApplicationContants.PATH_TO_MODELS + "cube.obj");
+        cube = new ObjLoader(ApplicationConstants.PATH_TO_MODELS + "cube.obj");
         try {
             cube.load();
         } catch (IOException ex) {
@@ -553,7 +577,7 @@ public class Cv6 {
         glBufferData(GL_ARRAY_BUFFER, cubeData, GL_STATIC_DRAW);
 
         // load dot and fill buffer with dot data
-        dot = new ObjLoader(ApplicationContants.PATH_TO_MODELS + "sphere.obj");
+        dot = new ObjLoader(ApplicationConstants.PATH_TO_MODELS + "sphere.obj");
         try {
             dot.load();
         } catch (IOException ex) {
@@ -635,7 +659,7 @@ public class Cv6 {
         // Create post-processing shader program
         // Task 1: examine initialization of all objects needed for off-screen rendering and post-processing
         try {
-            postprocessProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "postprocess.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "postprocess.fs.glsl");
+            postprocessProgram = loadProgram(ApplicationConstants.PATH_TO_SHADERS + "postprocess.vs.glsl", ApplicationConstants.PATH_TO_SHADERS + "postprocess.fs.glsl");
         } catch (IOException ex) {
             logger.error("it's broken", ex);
             System.exit(1);
