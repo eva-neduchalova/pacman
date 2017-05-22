@@ -141,8 +141,6 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 
@@ -157,11 +155,16 @@ import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 
 
 
 public class Cv6 {
+    
+    protected static final Logger logger = LoggerFactory.getLogger(Cv6.class);
 
     private static final int NUMBER_OF_INSTANCES = StringUtils.countMatches(Arrays.toString(ApplicationContants.MAZE_DEFINITION_STRING), "X"); // 100;
 
@@ -200,15 +203,15 @@ public class Cv6 {
 
     // model
     private ObjLoader cube;
-    private ObjLoader teapot;
+    private ObjLoader dot;
 
     // our OpenGL resources
     private int axesBuffer;
     private int cubeBuffer;
-    private int teapotBuffer;
+    private int dotBuffer;
     private int axesArray;
     private int cubeArray;
-    private int teapotArray;
+    private int dotArray;
 
     // our GLSL resources
     private int axesProgram;
@@ -219,21 +222,21 @@ public class Cv6 {
     private int woodTexture;
     private int cubeWoodTexLoc;
 
-    private int teapotProgram;
+    private int dotProgram;
 
-    private int teapotMvpLoc;
-    private int teapotNLoc;
-    private int teapotModelLoc;
+    private int dotMvpLoc;
+    private int dotNLoc;
+    private int dotModelLoc;
 
-    private int teapotViewLoc;
-    private int teapotProjectionLoc;
+    private int dotViewLoc;
+    private int dotProjectionLoc;
 
     private int modelLightPositionLoc;
     private int modelLightAmbientColorLoc;
     private int modelLightDiffuseColorLoc;
     private int modelLightSpecularColorLoc;
 
-    private int teapotEyePositionLoc;
+    private int dotEyePositionLoc;
 
     private int cubeProgram;
     private int cubeViewLoc;
@@ -241,9 +244,9 @@ public class Cv6 {
     private int cubeEyePositionLoc;
 
     private final Matrix4f[] modelMatrices = new Matrix4f[NUMBER_OF_INSTANCES];
-    private final Vector4f[] teapotColors = new Vector4f[NUMBER_OF_INSTANCES];
+    private final Vector4f[] dotColors = new Vector4f[NUMBER_OF_INSTANCES];
 
-    FloatBuffer teapotDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES * (16 + 4));
+    FloatBuffer dotDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES * (16 + 4));
     FloatBuffer cubeDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES * 16);
 
     // Fullscreen quad
@@ -271,8 +274,8 @@ public class Cv6 {
     private int lightDataUBO;
 
     // Light data uniform buffer
-    private final int TEAPOT_DATA_INDEX = 1;
-    private int teapotDataUBO;
+    private final int DOT_DATA_INDEX = 1;
+    private int dotDataUBO;
 
     // Light data uniform buffer
     private final int CUBE_DATA_INDEX = 1;
@@ -441,11 +444,11 @@ public class Cv6 {
         // load GLSL program (vertex, fragment shaders) and textures
         try {
             axesProgram = loadProgram( ApplicationContants.PATH_TO_SHADERS + "axes.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "axes.fs.glsl");
-            teapotProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "teapot.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "teapot.fs.glsl");
+            dotProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "dot.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "dot.fs.glsl");
             cubeProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "cube.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "cube.fs.glsl");
             woodTexture = loadTexture(ApplicationContants.PATH_TO_TEXTURES + "wood.jpg");
         } catch (IOException ex) {
-            Logger.getLogger(Cv6.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error("it's broken", ex);
             System.exit(1);
         }
 
@@ -460,40 +463,55 @@ public class Cv6 {
         cubeEyePositionLoc = glGetUniformLocation(cubeProgram, "eyePosition");
         cubeWoodTexLoc = glGetUniformLocation(cubeProgram, "woodTex");
 
-        teapotMvpLoc = glGetUniformLocation(teapotProgram, "MVP");
-        teapotNLoc = glGetUniformLocation(teapotProgram, "N");
-        teapotModelLoc = glGetUniformLocation(teapotProgram, "model");
+        dotMvpLoc = glGetUniformLocation(dotProgram, "MVP");
+        dotNLoc = glGetUniformLocation(dotProgram, "N");
+        dotModelLoc = glGetUniformLocation(dotProgram, "model");
 
-        teapotProjectionLoc = glGetUniformLocation(teapotProgram, "projection");
-        teapotViewLoc = glGetUniformLocation(teapotProgram, "view");
+        dotProjectionLoc = glGetUniformLocation(dotProgram, "projection");
+        dotViewLoc = glGetUniformLocation(dotProgram, "view");
 
-        modelLightPositionLoc = glGetUniformLocation(teapotProgram, "lightPosition");
-        modelLightAmbientColorLoc = glGetUniformLocation(teapotProgram, "lightAmbientColor");
-        modelLightDiffuseColorLoc = glGetUniformLocation(teapotProgram, "lightDiffuseColor");
-        modelLightSpecularColorLoc = glGetUniformLocation(teapotProgram, "lightSpecularColor");
+        modelLightPositionLoc = glGetUniformLocation(dotProgram, "lightPosition");
+        modelLightAmbientColorLoc = glGetUniformLocation(dotProgram, "lightAmbientColor");
+        modelLightDiffuseColorLoc = glGetUniformLocation(dotProgram, "lightDiffuseColor");
+        modelLightSpecularColorLoc = glGetUniformLocation(dotProgram, "lightSpecularColor");
 
-        teapotEyePositionLoc = glGetUniformLocation(teapotProgram, "eyePosition");
+        dotEyePositionLoc = glGetUniformLocation(dotProgram, "eyePosition");
 
         // Task 5: prepare 100 model matrices so that the objects are in a 10×10 grid, centered around [0,1,0] in world coordinates
         // you can use the prepared one dimensional array modelMatrices
         // protip: there's a constant NUMBER_OF_INSTANCES, you can use it in your for cycle :)
-        // Task 6: assign a different color to each teapot, use method randomColor()
-        // again, use the prepared array, teapotColors
-        // Task 9: store the model matrix and colors to teapotDataBuffer;
+        // Task 6: assign a different color to each dot, use method randomColor()
+        // again, use the prepared array, dotColors
+        // Task 9: store the model matrix and colors to dotDataBuffer;
         // you will want to you Matrix4f.get(int index, FloatBuffer buffer)
         // and Vector4f.get(int index, FloatBuffer buffer)
         // Task 10: prepare 100 model matrices so that the objects are in a 10×10 grid, centered around [0,0,0] in world coordinates
         // and store them into the cubeDataBuffer
-        for (int i = 0; i < NUMBER_OF_INSTANCES; i++) {
-            // modelMatrices[i] = new Matrix4f().translate((i % 10 - 4.5f) * 5.0f, 1, (i / 10 - 4.5f) * 5.0f);
-            // teapotColors[i] = randomColor();
-
-            Vector3f teapotLocation = new Vector3f((i % 10 - 4.5f) * 5, 1, (i / 10 - 4.5f) * 5);
-            Vector3f cubeLocation = new Vector3f((i % 10 - 4.5f) * 5, 0, (i / 10 - 4.5f) * 5);
-            new Matrix4f().translate(teapotLocation) // creates model matrix at teapotLocation
-                    .get(i * 16, teapotDataBuffer); // and stores it into teapotBuffer at selected index
-            randomColor().get((NUMBER_OF_INSTANCES * 16) + (i * 4), teapotDataBuffer);
-            new Matrix4f().translate(cubeLocation).get(i * 16, cubeDataBuffer);
+        
+        
+        int cubeCounter = 0;
+        int dotsCounter = 0;
+        int x = 0;
+        int y = 0;
+        for (String row : ApplicationContants.MAZE_DEFINITION_STRING) {
+            x = 0;
+            for (char c : row.toCharArray()) {
+                logger.info(String.format("_x, y, = %s, %s.", x, y));
+                if ('X' == c) {
+                    // logger.info(String.format("x, y, = %s, %s. Drawing cube", x, y));
+                    // Vector3f cubeLocation = new Vector3f((i % 10 - 4.5f) * 5, 0, (i / 10 - 4.5f) * 5);
+                    Vector3f cubeLocation = new Vector3f((x - 4.5f) * 2, (y - 4.5f) * 2, 0);
+                    new Matrix4f().translate(cubeLocation).get(cubeCounter * 16, cubeDataBuffer);
+                    cubeCounter++;
+                } else if ('.' == c) {
+                    Vector3f dotLocation = new Vector3f((x - 4.5f) * 2, (y - 4.5f) * 2, 0);
+                    new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
+                            .get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                    dotsCounter++;
+                }
+                x++;
+            }
+            y++;
         }
 
         // create buffers with geometry
@@ -501,7 +519,7 @@ public class Cv6 {
         glGenBuffers(buffers);
         axesBuffer = buffers[0];
         cubeBuffer = buffers[1];
-        teapotBuffer = buffers[2];
+        dotBuffer = buffers[2];
 
         // fill a buffers with geometry
         glBindBuffer(GL_ARRAY_BUFFER, axesBuffer);
@@ -512,7 +530,7 @@ public class Cv6 {
         try {
             cube.load();
         } catch (IOException ex) {
-            Logger.getLogger(Cv6.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error("it's broken", ex);
             System.exit(1);
         }
         int cubeBufferLength = 3 * 8 * cube.getTriangleCount();
@@ -534,32 +552,32 @@ public class Cv6 {
         glBindBuffer(GL_ARRAY_BUFFER, cubeBuffer);
         glBufferData(GL_ARRAY_BUFFER, cubeData, GL_STATIC_DRAW);
 
-        // load teapot and fill buffer with teapot data
-        teapot = new ObjLoader(ApplicationContants.PATH_TO_MODELS + "teapot.obj");
+        // load dot and fill buffer with dot data
+        dot = new ObjLoader(ApplicationContants.PATH_TO_MODELS + "sphere.obj");
         try {
-            teapot.load();
+            dot.load();
         } catch (IOException ex) {
-            Logger.getLogger(Cv6.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error("it's broken", ex);
             System.exit(1);
         }
-        int teapotLength = 3 * 8 * teapot.getTriangleCount();
-        FloatBuffer teapotData = BufferUtils.createFloatBuffer(teapotLength);
-        for (int f = 0; f < teapot.getTriangleCount(); f++) {
-            int[] pi = teapot.getVertexIndices().get(f);
-            int[] ni = teapot.getNormalIndices().get(f);
-            int[] ti = teapot.getTexcoordIndices().get(f);
+        int dotLength = 3 * 8 * dot.getTriangleCount();
+        FloatBuffer dotData = BufferUtils.createFloatBuffer(dotLength);
+        for (int f = 0; f < dot.getTriangleCount(); f++) {
+            int[] pi = dot.getVertexIndices().get(f);
+            int[] ni = dot.getNormalIndices().get(f);
+            int[] ti = dot.getTexcoordIndices().get(f);
             for (int i = 0; i < 3; i++) {
-                float[] position = teapot.getVertices().get(pi[i]);
-                float[] normal = teapot.getNormals().get(ni[i]);
-                float[] texcoord = teapot.getTexcoords().get(ti[i]);
-                teapotData.put(position);
-                teapotData.put(normal);
-                teapotData.put(texcoord);
+                float[] position = dot.getVertices().get(pi[i]);
+                float[] normal = dot.getNormals().get(ni[i]);
+                float[] texcoord = dot.getTexcoords().get(ti[i]);
+                dotData.put(position);
+                dotData.put(normal);
+                dotData.put(texcoord);
             }
         }
-        teapotData.rewind();
-        glBindBuffer(GL_ARRAY_BUFFER, teapotBuffer);
-        glBufferData(GL_ARRAY_BUFFER, teapotData, GL_STATIC_DRAW);
+        dotData.rewind();
+        glBindBuffer(GL_ARRAY_BUFFER, dotBuffer);
+        glBufferData(GL_ARRAY_BUFFER, dotData, GL_STATIC_DRAW);
 
         // clear buffer binding, so that other code doesn't presume it (easier error detection)
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -569,7 +587,7 @@ public class Cv6 {
         glGenVertexArrays(arrays);
         axesArray = arrays[0];
         cubeArray = arrays[1];
-        teapotArray = arrays[2];
+        dotArray = arrays[2];
 
         // get axes program attributes
         int positionAttribLoc = glGetAttribLocation(axesProgram, "position");
@@ -584,9 +602,9 @@ public class Cv6 {
         glVertexAttribPointer(colorAttribLoc, 3, GL_FLOAT, false, SIZEOF_AXES_VERTEX, COLOR_OFFSET);
 
         // get cube program attributes
-        positionAttribLoc = glGetAttribLocation(teapotProgram, "position");
-        int normalAttribLoc = glGetAttribLocation(teapotProgram, "normal");
-        int texcoordAttribLoc = glGetAttribLocation(teapotProgram, "texcoord");
+        positionAttribLoc = glGetAttribLocation(dotProgram, "position");
+        int normalAttribLoc = glGetAttribLocation(dotProgram, "normal");
+        int texcoordAttribLoc = glGetAttribLocation(dotProgram, "texcoord");
 
         // bind cube buffer
         glBindVertexArray(cubeArray);
@@ -598,9 +616,9 @@ public class Cv6 {
         glEnableVertexAttribArray(texcoordAttribLoc);
         glVertexAttribPointer(texcoordAttribLoc, 2, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, TEXCOORD_OFFSET);
 
-        // bind teapot buffer
-        glBindVertexArray(teapotArray);
-        glBindBuffer(GL_ARRAY_BUFFER, teapotBuffer);
+        // bind dot buffer
+        glBindVertexArray(dotArray);
+        glBindBuffer(GL_ARRAY_BUFFER, dotBuffer);
         glEnableVertexAttribArray(positionAttribLoc);
         glVertexAttribPointer(positionAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, 0);
         glEnableVertexAttribArray(normalAttribLoc);
@@ -619,7 +637,7 @@ public class Cv6 {
         try {
             postprocessProgram = loadProgram(ApplicationContants.PATH_TO_SHADERS + "postprocess.vs.glsl", ApplicationContants.PATH_TO_SHADERS + "postprocess.fs.glsl");
         } catch (IOException ex) {
-            Logger.getLogger(Cv6.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error("it's broken", ex);
             System.exit(1);
         }
 
@@ -667,7 +685,7 @@ public class Cv6 {
         glDrawBuffers(GL_COLOR_ATTACHMENT0);
         int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
-            Logger.getLogger(Cv6.class.getName()).log(Level.SEVERE, "Failed to create a complete framebuffer");
+            logger.error("it's broken with status: " + status);
             System.exit(1);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -683,16 +701,16 @@ public class Cv6 {
         // Task 7: store location of LightData uniform block index, using glGetUniformBlockIndex(int program, String uniformBlockName)
         // bind the location for the program using glUniformBlockBinding(int program, int uniformBlockIndex, int uniformBlockBinding)
         // choose the uniformBlockBinding to be the constant LIGHT_DATA_INDEX which is 0
-        // Task 9: store location of TeapotData uniform block index, as in the previous scenario
-        // but now use the uniformBlockBinding to be the constant TEAPOT_DATA_INDEX which is 1
+        // Task 9: store location of DotData uniform block index, as in the previous scenario
+        // but now use the uniformBlockBinding to be the constant DOT_DATA_INDEX which is 1
         // Task 10: store location of CubeData uniform block index, as in the previous scenario
         // be careful! now you want a different program
         // and again, use a constant 1 again (CUBE_DATA_INDEX)
-        int teapotLightDataLoc = glGetUniformBlockIndex(teapotProgram, "LightData");
-        glUniformBlockBinding(teapotProgram, teapotLightDataLoc, LIGHT_DATA_INDEX);
+        int dotLightDataLoc = glGetUniformBlockIndex(dotProgram, "LightData");
+        glUniformBlockBinding(dotProgram, dotLightDataLoc, LIGHT_DATA_INDEX);
 
-        int teapotDataLoc = glGetUniformBlockIndex(teapotProgram, "TeapotData");
-        glUniformBlockBinding(teapotProgram, teapotDataLoc, TEAPOT_DATA_INDEX);
+        int dotDataLoc = glGetUniformBlockIndex(dotProgram, "DotData");
+        glUniformBlockBinding(dotProgram, dotDataLoc, DOT_DATA_INDEX);
 
         int cubeDataLoc = glGetUniformBlockIndex(cubeProgram, "CubeData");
         glUniformBlockBinding(cubeProgram, cubeDataLoc, CUBE_DATA_INDEX);
@@ -703,8 +721,8 @@ public class Cv6 {
         // then, bind the buffer using glBindBuffer with target being GL_UNIFORM_BUFFER
         // and upload the data using glBufferData(int target, float[] data, GL_STATIC_DRAW)
         // finally, bind buffer 0 to unbind the previous buffer
-        // Task 9: get an unused buffer name from the generated buffer names and store it as teapotDataUBO
-        // bind it, and upload teapotDataBuffer as buffer data
+        // Task 9: get an unused buffer name from the generated buffer names and store it as dotDataUBO
+        // bind it, and upload dotDataBuffer as buffer data
         // Task 10: get an unused buffer name from the generated buffer names and store it as cubeDataUBO
         // bind it, and upload the cubeDataBuffer as buffer data
         int[] buffers = new int[3];
@@ -715,9 +733,9 @@ public class Cv6 {
         glBufferData(GL_UNIFORM_BUFFER, lightData, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-        teapotDataUBO = buffers[1];
-        glBindBuffer(GL_UNIFORM_BUFFER, teapotDataUBO);
-        glBufferData(GL_UNIFORM_BUFFER, teapotDataBuffer, GL_STATIC_DRAW);
+        dotDataUBO = buffers[1];
+        glBindBuffer(GL_UNIFORM_BUFFER, dotDataUBO);
+        glBufferData(GL_UNIFORM_BUFFER, dotDataBuffer, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         cubeDataUBO = buffers[2];
@@ -766,13 +784,13 @@ public class Cv6 {
 
         // Task 7: bind the light uniform buffer using glBindBufferBase(GL_UNIFORM_BUFFER, int index, int buffer)
         // where index is your uniformBlockBinding you used previously
-        // Task 9: bind uniform buffer for the teapot data, using the same function as previously
+        // Task 9: bind uniform buffer for the dot data, using the same function as previously
         glBindBufferBase(GL_UNIFORM_BUFFER, LIGHT_DATA_INDEX, lightDataUBO);
-        glBindBufferBase(GL_UNIFORM_BUFFER, TEAPOT_DATA_INDEX, teapotDataUBO);
+        glBindBufferBase(GL_UNIFORM_BUFFER, DOT_DATA_INDEX, dotDataUBO);
 
-        drawTeapot(new Matrix4f(), view, projection, teapotArray, teapot.getTriangleCount() * 3);
+        drawDot(new Matrix4f(), view, projection, dotArray, dot.getTriangleCount() * 3);
 
-        // Task 10: rebind buffer base on index 1 (TEAPOT_DATA_INDEX) to CUBE_DATA_INDEX to cubeDataUBO
+        // Task 10: rebind buffer base on index 1 (DOT_DATA_INDEX) to CUBE_DATA_INDEX to cubeDataUBO
         // and add drawCubes() call to draw the cubes
         glBindBufferBase(GL_UNIFORM_BUFFER, CUBE_DATA_INDEX, cubeDataUBO);
         drawCubes(view, projection);
@@ -814,11 +832,11 @@ public class Cv6 {
         glEnable(GL_DEPTH_TEST);
     }
 
-    private void drawTeapot(Matrix4f model, Matrix4f view, Matrix4f projection, int vao, int count) {
-        glUseProgram(teapotProgram);
+    private void drawDot(Matrix4f model, Matrix4f view, Matrix4f projection, int vao, int count) {
+        glUseProgram(dotProgram);
         glBindVertexArray(vao);
 
-        glUniform3f(teapotEyePositionLoc, camera.getEyePosition().x, camera.getEyePosition().y, camera.getEyePosition().z);
+        glUniform3f(dotEyePositionLoc, camera.getEyePosition().x, camera.getEyePosition().y, camera.getEyePosition().z);
 
         // Task 5: remove the current assignments of MVP, normal and model matrices
         // pass the projection and view matrix separately to the shaders
@@ -827,7 +845,7 @@ public class Cv6 {
         // - pass the float buffer to shader using glUniformMatrix4fv(int location, false, FloatBuffer buffer)
         // similarly, pass 100 model matrices to the model array in shader
         // hint: use a for cycle and get uniform location of "model[i]"
-        // Task 6: as in previous task, pass the 100 teapot colors
+        // Task 6: as in previous task, pass the 100 dot colors
         // Task 7: remove the glUniform calls for light properties
         // Task 9: remove the assigning of model and materialColor uniform variables
         FloatBuffer projectionData = BufferUtils.createFloatBuffer(16);
@@ -838,12 +856,12 @@ public class Cv6 {
         view.get(viewData);
         /*
          * for (int i = 0; i < NUMBER_OF_INSTANCES; i++) { modelMatrices[i].get(modelData); int modelLoc =
-         * glGetUniformLocation(teapotProgram, "model[" + i + "]"); int materialLoc = glGetUniformLocation(teapotProgram, "materialColor[" +
-         * i + "]"); glUniformMatrix4fv(modelLoc, false, modelData); glUniform4f(materialLoc, teapotColors[i].x, teapotColors[i].y,
-         * teapotColors[i].z, teapotColors[i].w); }
+         * glGetUniformLocation(dotProgram, "model[" + i + "]"); int materialLoc = glGetUniformLocation(dotProgram, "materialColor[" +
+         * i + "]"); glUniformMatrix4fv(modelLoc, false, modelData); glUniform4f(materialLoc, dotColors[i].x, dotColors[i].y,
+         * dotColors[i].z, dotColors[i].w); }
          */
-        glUniformMatrix4fv(teapotProjectionLoc, false, projectionData);
-        glUniformMatrix4fv(teapotViewLoc, false, viewData);
+        glUniformMatrix4fv(dotProjectionLoc, false, projectionData);
+        glUniformMatrix4fv(dotViewLoc, false, viewData);
 
 
         // Task 5: change the draw call to be an instanced draw call glDrawArraysInstanced(int mode, int first, int count, int primcount)

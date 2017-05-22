@@ -31,6 +31,8 @@ public class ApplicationContants {
             "X...................X", // 15
             "XXXXXXXXXXXXXXXXXXXXX", // 16
     };
-
+    
+    public static final int MAZE_ROWS = MAZE_DEFINITION_STRING.length;
+    public static final int MAZE_COLUMNS = MAZE_DEFINITION_STRING[0].length();
 
 }
