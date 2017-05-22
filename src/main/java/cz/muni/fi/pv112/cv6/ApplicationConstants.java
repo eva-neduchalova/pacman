@@ -22,9 +22,9 @@ public class ApplicationConstants {
             "X....X..........X.X.X", // 6
             "X.XX.X.XXX-XXX.XX.X.X", // 7
             "X.XX.X.X     X......X", // 8
-            "X.XX...X     X.XXXX.X", // 9
+            "X.XX...XGG GGX.XXXX.X", // 9
             "X.XX.X.XXXXXXX.XXXX.X", // 10
-            "X....X.... .........X", // 11
+            "X....X....P.........X", // 11
             "XXX.XX.XXXXXXX.X.X.XX", // 12
             "X.........X....X....X", // 13
             "XOXXXXXXX.X.XXXXXXXOX", // 14
