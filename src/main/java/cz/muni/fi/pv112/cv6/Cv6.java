@@ -224,17 +224,8 @@ public class Cv6 {
 
     private int dotProgram;
 
-    private int dotMvpLoc;
-    private int dotNLoc;
-    private int dotModelLoc;
-
     private int dotViewLoc;
     private int dotProjectionLoc;
-
-    private int modelLightPositionLoc;
-    private int modelLightAmbientColorLoc;
-    private int modelLightDiffuseColorLoc;
-    private int modelLightSpecularColorLoc;
 
     private int dotEyePositionLoc;
 
@@ -242,9 +233,6 @@ public class Cv6 {
     private int cubeViewLoc;
     private int cubeProjectionLoc;
     private int cubeEyePositionLoc;
-
-    private final Matrix4f[] modelMatrices = new Matrix4f[NUMBER_OF_INSTANCES];
-    private final Vector4f[] dotColors = new Vector4f[NUMBER_OF_INSTANCES];
 
     FloatBuffer dotDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES * (16 + 4));
     FloatBuffer cubeDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES * 16);
@@ -486,32 +474,13 @@ public class Cv6 {
         cubeEyePositionLoc = glGetUniformLocation(cubeProgram, "eyePosition");
         cubeWoodTexLoc = glGetUniformLocation(cubeProgram, "woodTex");
 
-        dotMvpLoc = glGetUniformLocation(dotProgram, "MVP");
-        dotNLoc = glGetUniformLocation(dotProgram, "N");
-        dotModelLoc = glGetUniformLocation(dotProgram, "model");
-
         dotProjectionLoc = glGetUniformLocation(dotProgram, "projection");
         dotViewLoc = glGetUniformLocation(dotProgram, "view");
 
-        modelLightPositionLoc = glGetUniformLocation(dotProgram, "lightPosition");
-        modelLightAmbientColorLoc = glGetUniformLocation(dotProgram, "lightAmbientColor");
-        modelLightDiffuseColorLoc = glGetUniformLocation(dotProgram, "lightDiffuseColor");
-        modelLightSpecularColorLoc = glGetUniformLocation(dotProgram, "lightSpecularColor");
-
         dotEyePositionLoc = glGetUniformLocation(dotProgram, "eyePosition");
-
-        // Task 5: prepare 100 model matrices so that the objects are in a 10×10 grid, centered around [0,1,0] in world coordinates
-        // you can use the prepared one dimensional array modelMatrices
-        // protip: there's a constant NUMBER_OF_INSTANCES, you can use it in your for cycle :)
-        // Task 6: assign a different color to each dot, use method randomColor()
-        // again, use the prepared array, dotColors
-        // Task 9: store the model matrix and colors to dotDataBuffer;
-        // you will want to you Matrix4f.get(int index, FloatBuffer buffer)
-        // and Vector4f.get(int index, FloatBuffer buffer)
-        // Task 10: prepare 100 model matrices so that the objects are in a 10×10 grid, centered around [0,0,0] in world coordinates
-        // and store them into the cubeDataBuffer
         
-        
+        float offsetX = -10f;
+        float offsetY = -8f;
         int cubeCounter = 0;
         int dotsCounter = 0;
         int x = 0;
@@ -523,14 +492,30 @@ public class Cv6 {
                 if ('X' == c) {
                     // logger.info(String.format("x, y, = %s, %s. Drawing cube", x, y));
                     // Vector3f cubeLocation = new Vector3f((i % 10 - 4.5f) * 5, 0, (i / 10 - 4.5f) * 5);
-                    Vector3f cubeLocation = new Vector3f((x - 4.5f) * 2, (y - 4.5f) * 2, 0);
+                    Vector3f cubeLocation = new Vector3f((x + offsetX) * 2, (y + offsetY) * 2, 0);
                     new Matrix4f().translate(cubeLocation).get(cubeCounter * 16, cubeDataBuffer);
                     cubeCounter++;
                 } else if ('.' == c) {
-                    Vector3f dotLocation = new Vector3f((x - 4.5f) * 2, (y - 4.5f) * 2, 0);
+                    Vector3f dotLocation = new Vector3f((x + offsetX) * 2, (y + offsetY) * 2, 0);
                     new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
-                            .scale(0.25f, 0.25f, 0.25f)
-                            .get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                            .scale(0.25f, 0.25f, 0.25f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected
+                                                                                              // index
+                    dotsCounter++;
+                } else if ('O' == c) {
+                    Vector3f dotLocation = new Vector3f((x + offsetX) * 2, (y + offsetY) * 2, 0);
+                    new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
+                            .scale(0.5f, 0.5f, 0.5f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                    dotsCounter++;
+                } else if ('G' == c) {
+                    Vector3f dotLocation = new Vector3f((x + offsetX) * 2, (y + offsetY) * 2, 0);
+                    new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
+                            .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                    dotsCounter++;
+                } else if ('P' == c) {
+                    // Pacman!
+                    Vector3f dotLocation = new Vector3f((x + offsetX) * 2, (y + offsetY) * 2, 0);
+                    new Matrix4f().translate(dotLocation) // creates model matrix at dotLocation
+                            .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
                     dotsCounter++;
                 }
                 x++;
@@ -589,7 +574,7 @@ public class Cv6 {
         for (int f = 0; f < dot.getTriangleCount(); f++) {
             int[] pi = dot.getVertexIndices().get(f);
             int[] ni = dot.getNormalIndices().get(f);
-            int[] ti = dot.getTexcoordIndices().get(f);
+            Integer[] ti = dot.getTexcoordIndices().get(f);
             for (int i = 0; i < 3; i++) {
                 float[] position = dot.getVertices().get(pi[i]);
                 float[] normal = dot.getNormals().get(ni[i]);
