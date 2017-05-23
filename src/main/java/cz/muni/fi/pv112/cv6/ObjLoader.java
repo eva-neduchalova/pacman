@@ -25,7 +25,7 @@ public class ObjLoader {
         this.path = path;
     }
 
-    public void load() throws IOException {
+    public void loadModel() throws IOException {
         /* Mesh containing the loaded object */
         vertices = new ArrayList<>();
         normals = new ArrayList<>();
