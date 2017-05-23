@@ -40,4 +40,19 @@ public class Maze {
         return columns;
     }
 
+    public String toLogString() {
+        StringBuilder result = new StringBuilder("\n");
+        for (int y = getRows() - 1; y >= 0; y--) {
+            for (int x = 0; x < getColumns(); x++) {
+                MazeLocationStatus status = getValue(x, y);
+                if (status == null) {
+                    status = MazeLocationStatus.EMPTY;
+                }
+                result.append(status.getShortcut());
+            }
+            result.append("\n");
+        }
+        return result.toString();
+    }
+
 }

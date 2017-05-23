@@ -5,6 +5,8 @@ import cz.evcino.pacman.enums.MovementDirection;
 public class Pacman extends AbstractDrawableObject {
 
     private int extraLives = 3;
+    private long score = 0;
+
     private MovementDirection direction = MovementDirection.UP;
     // how far pacman moves in one "move" round
     float speed = 0.1f;
@@ -47,6 +49,14 @@ public class Pacman extends AbstractDrawableObject {
     public String toLogString() {
         return "Pacman [extraLives=" + extraLives + ", direction=" + direction + ", speed=" + speed + ", getLocationX()=" + getLocationX()
                 + ", getLocationY()=" + getLocationY() + ", getLocationZ()=" + getLocationZ() + "]";
+    }
+
+    public long getScore() {
+        return score;
+    }
+
+    public void setScore(long score) {
+        this.score = score;
     }
 
 }
