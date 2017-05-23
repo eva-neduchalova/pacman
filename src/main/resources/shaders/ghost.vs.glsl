@@ -2,36 +2,21 @@
 
 in vec3 position;
 in vec3 normal;
-in vec2 texcoord;
 
-// Task 6: add out variable for color of type vec3
-out vec3 vNormal;
-out vec3 vPosition;
-out vec2 vTexCoord;
-out vec3 vColor;
+out vec3 vertColor;
+out vec3 vertNormal;
 
-// Task 5: remove current normal, MVP and model matrices
-//           add projection and view matrix uniforms
-//           add array of model matrices with 100 items
-// Task 6: add array materialColor of 100 colors (type vec4)
-// Task 9: move the model and material color arrays to DotData uniform object
-uniform mat4 projection;
-uniform mat4 view;
-// uniform mat4 model[100];
-// uniform vec4 materialColor[100];
+// width/height ratio
+uniform float aspect;
 
-layout (std140) uniform DotData
-{
-    mat4 model[100];
-    vec4 materialColor[100];
-};
+// model view projection matrix
+uniform mat4 MVP;
+uniform mat3 N;
+uniform vec3 color;
 
 void main() {
-    // Task 5: change the calculations to use the model matrix from array, with current gl_InstanceID as index
-    // Task 6: pass the values (first 3 components) of the materialColor to vColor
-    vNormal = transpose(inverse(mat3(model[gl_InstanceID]))) * normal;
-    vPosition = vec3(model[gl_InstanceID] * vec4(position, 1.0));
-    vTexCoord = texcoord;
-    vColor = materialColor[gl_InstanceID].rgb;
-    gl_Position = projection * view * model[gl_InstanceID] * vec4(position, 1.0);
+    vertColor = color;
+    vertNormal = N * normal;
+    // Task 3:  remove division by aspect as it is already present in projection
+    gl_Position = MVP * vec4(position.x, position.yz, 1.0);
 }

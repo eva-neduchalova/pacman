@@ -111,15 +111,14 @@ import static org.lwjgl.opengl.GL31.GL_UNIFORM_BUFFER;
 import static org.lwjgl.opengl.GL31.glDrawArraysInstanced;
 import static org.lwjgl.opengl.GL31.glGetUniformBlockIndex;
 import static org.lwjgl.opengl.GL31.glUniformBlockBinding;
-import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -137,7 +136,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import cz.evcino.pacman.enums.MovementDirection;
-import cz.evcino.pacman.objects.Dot;
+import cz.evcino.pacman.objects.Ghost;
 import cz.evcino.pacman.objects.Maze;
 import cz.evcino.pacman.objects.MazeLocationStatus;
 import cz.evcino.pacman.objects.Pacman;
@@ -186,6 +185,7 @@ public class PacmanGame {
 
     Maze maze = null;
     Pacman pacmanCharacter = null;
+    private List<Ghost> ghosts = new ArrayList<>();
 
 
     // model
@@ -224,9 +224,10 @@ public class PacmanGame {
 
 
     private int ghostProgram;
-    private int ghostProjectionLoc;
-    private int ghostViewLoc;
-    private int ghostEyePositionLoc;
+    private int ghostAspectUniformLoc;
+    private int ghostMvpUniformLoc;
+    private int ghostNUniformLoc;
+    private int ghostColorUniformLoc;
 
     private int pacmanProgram;
     private int pacmanAspectUniformLoc;
@@ -275,6 +276,7 @@ public class PacmanGame {
     // Light data uniform buffer
     private final int GHOST_DATA_INDEX = 1;
     private int ghostDataUBO;
+
 
     public static void main(String[] args) {
         new PacmanGame().run();
@@ -339,7 +341,7 @@ public class PacmanGame {
                 } else if (GLFW_KEY_RIGHT == key) {
                     System.out.println("right");
                     pacmanCharacter.setDirection(MovementDirection.RIGHT);
-                } else if (GLFW_KEY_L== key) {
+                } else if (GLFW_KEY_L == key) {
                     logger.info(maze.toLogString());
                 }
             }
@@ -441,18 +443,27 @@ public class PacmanGame {
             // Poll for window events. The key callback above will only be invoked during this call.
             glfwPollEvents();
 
+            // TODO - ghosts.move
 
+            for (Ghost ghost : ghosts) {
+                boolean ghostCanTurn = MovementUtils.canGhostChangeDirection(ghost, maze);
+                if (ghostCanTurn) {
+                    MovementUtils.selectGhostDirection(ghost, maze);
+                }
+                ghost.move();
+            }
             if (MovementUtils.canMove(pacmanCharacter, maze)) {
-                boolean dotsAndGhostUpdateRequired = MovementUtils.evaluateDots(pacmanCharacter, maze);
-                if (dotsAndGhostUpdateRequired) {
+                boolean dotsUpdateRequired = MovementUtils.evaluateDots(pacmanCharacter, maze);
+                if (dotsUpdateRequired) {
                     addDotsAndPowerDotsOnBuffers(maze, dotDataBuffer);
                     glBindBuffer(GL_UNIFORM_BUFFER, dotDataUBO);
                     glBufferData(GL_UNIFORM_BUFFER, dotDataBuffer, GL_STATIC_DRAW);
                     glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 }
                 pacmanCharacter.move();
+
             }
-            
+
             render();
 
             glfwSwapBuffers(window); // swap the color buffers
@@ -489,11 +500,6 @@ public class PacmanGame {
         dotViewLoc = glGetUniformLocation(dotProgram, "view");
         dotEyePositionLoc = glGetUniformLocation(dotProgram, "eyePosition");
 
-        ghostProjectionLoc = glGetUniformLocation(ghostProgram, "projection");
-        ghostViewLoc = glGetUniformLocation(ghostProgram, "view");
-        ghostEyePositionLoc = glGetUniformLocation(ghostProgram, "eyePosition");
-
-
         int mazeRows = ApplicationConstants.MAZE_DEFINITION_STRING.length;
         int mazeColumns = ApplicationConstants.MAZE_DEFINITION_STRING[0].length();
         maze = new Maze(mazeRows, mazeColumns);
@@ -502,7 +508,6 @@ public class PacmanGame {
         float offsetX = -mazeColumns / 2;
         float offsetY = -mazeRows / 2;
         int cubeCounter = 0;
-        int ghostCounter = 0;
         int x = 0;
         int y = 0;
         for (String row : ApplicationConstants.MAZE_DEFINITION_STRING) {
@@ -518,10 +523,11 @@ public class PacmanGame {
                 } else if ('O' == c) {
                     maze.setValue(x, y, MazeLocationStatus.POWER_DOT);
                 } else if ('G' == c) {
-                    new Matrix4f().translate(location) // creates model matrix at location
-                            .scale(4f, 4f, 4f).get(ghostCounter * 16, ghostDataBuffer); // and stores it into ghostDataBuffer at selected
-                                                                                        // index
-                    ghostCounter++;
+                    Ghost ghostCharacter = new Ghost();
+                    ghostCharacter.setLocation(location);
+                    ghostCharacter.setColor(Ghost.COLORS[ghosts.size() % Ghost.COLORS.length]);
+                    ghostCharacter.setDirection(MovementDirection.values()[ghosts.size() % MovementDirection.values().length]);
+                    ghosts.add(ghostCharacter);
                     maze.setValue(x, y, MazeLocationStatus.EMPTY);
                 } else if ('P' == c) {
                     // Pacman!
@@ -536,8 +542,14 @@ public class PacmanGame {
             }
             y++;
         }
-        
+
         addDotsAndPowerDotsOnBuffers(maze, dotDataBuffer);
+
+        // model program uniforms
+        ghostAspectUniformLoc = glGetUniformLocation(ghostProgram, "aspect");
+        ghostMvpUniformLoc = glGetUniformLocation(ghostProgram, "MVP");
+        ghostNUniformLoc = glGetUniformLocation(ghostProgram, "N");
+        ghostColorUniformLoc = glGetUniformLocation(ghostProgram, "color");
 
         // model program uniforms
         pacmanAspectUniformLoc = glGetUniformLocation(pacmanProgram, "aspect");
@@ -565,7 +577,7 @@ public class PacmanGame {
         dot = ModelUtils.loadModelData("sphere.obj", dotBuffer);
 
         // load ghost and fill buffer with ghost data
-        ghost = ModelUtils.loadModelData("teapot.obj", ghostBuffer);
+        ghost = ModelUtils.loadModelData("cube.obj", ghostBuffer);
 
         // load pacman and fill buffer with pacman data
         pacman = ModelUtils.loadModelData("cube.obj", pacmanBuffer);
@@ -626,8 +638,6 @@ public class PacmanGame {
             // get pacman program attributes
             int positionAttribLoc = glGetAttribLocation(pacmanProgram, "position");
             int normalAttribLoc = glGetAttribLocation(pacmanProgram, "normal");
-            int texcoordAttribLoc = glGetAttribLocation(pacmanProgram, "texcoord");
-
 
             // bind pacman buffer
             glBindVertexArray(pacmanArray);
@@ -744,20 +754,13 @@ public class PacmanGame {
     }
 
     private void initUniformBuffers() {
+
         float[] lightData = new float[] { 0, 1, 0, 0, // position
                 0.3f, 0.3f, 0.3f, 0, // ambient color
                 1, 1, 1, 0, // diffuse color
                 1, 1, 1, 0 // specular color
         };
 
-        // Task 7: store location of LightData uniform block index, using glGetUniformBlockIndex(int program, String uniformBlockName)
-        // bind the location for the program using glUniformBlockBinding(int program, int uniformBlockIndex, int uniformBlockBinding)
-        // choose the uniformBlockBinding to be the constant LIGHT_DATA_INDEX which is 0
-        // Task 9: store location of DotData uniform block index, as in the previous scenario
-        // but now use the uniformBlockBinding to be the constant DOT_DATA_INDEX which is 1
-        // Task 10: store location of CubeData uniform block index, as in the previous scenario
-        // be careful! now you want a different program
-        // and again, use a constant 1 again (CUBE_DATA_INDEX)
         int dotLightDataLoc = glGetUniformBlockIndex(dotProgram, "LightData");
         glUniformBlockBinding(dotProgram, dotLightDataLoc, LIGHT_DATA_INDEX);
 
@@ -767,22 +770,6 @@ public class PacmanGame {
         int cubeDataLoc = glGetUniformBlockIndex(cubeProgram, "CubeData");
         glUniformBlockBinding(cubeProgram, cubeDataLoc, CUBE_DATA_INDEX);
 
-        int ghostLightDataLoc = glGetUniformBlockIndex(ghostProgram, "LightData");
-        glUniformBlockBinding(ghostProgram, ghostLightDataLoc, LIGHT_DATA_INDEX);
-
-        int ghostDataLoc = glGetUniformBlockIndex(ghostProgram, "GhostData");
-        glUniformBlockBinding(ghostProgram, ghostDataLoc, GHOST_DATA_INDEX);
-
-        // Task 7: generate buffers using glGenBuffers; remember the first seminar and glGenBuffers
-        // (protip: you can generate 3 buffers now, we will use them later)
-        // afterwards, assign the first generated buffer to lightDataUBO class variable
-        // then, bind the buffer using glBindBuffer with target being GL_UNIFORM_BUFFER
-        // and upload the data using glBufferData(int target, float[] data, GL_STATIC_DRAW)
-        // finally, bind buffer 0 to unbind the previous buffer
-        // Task 9: get an unused buffer name from the generated buffer names and store it as dotDataUBO
-        // bind it, and upload dotDataBuffer as buffer data
-        // Task 10: get an unused buffer name from the generated buffer names and store it as cubeDataUBO
-        // bind it, and upload the cubeDataBuffer as buffer data
         int[] buffers = new int[4];
         glGenBuffers(buffers);
 
@@ -799,11 +786,6 @@ public class PacmanGame {
         dotDataUBO = buffers[2];
         glBindBuffer(GL_UNIFORM_BUFFER, dotDataUBO);
         glBufferData(GL_UNIFORM_BUFFER, dotDataBuffer, GL_STATIC_DRAW);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        ghostDataUBO = buffers[3];
-        glBindBuffer(GL_UNIFORM_BUFFER, ghostDataUBO);
-        glBufferData(GL_UNIFORM_BUFFER, ghostDataBuffer, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     }
@@ -852,18 +834,20 @@ public class PacmanGame {
         drawDot(new Matrix4f(), view, projection, dotArray, dot.getTriangleCount() * 3);
 
         // ghosts
-        glBindBufferBase(GL_UNIFORM_BUFFER, LIGHT_DATA_INDEX, lightDataUBO);
-        glBindBufferBase(GL_UNIFORM_BUFFER, GHOST_DATA_INDEX, ghostDataUBO);
-        drawGhost(new Matrix4f(), view, projection, ghostArray, ghost.getTriangleCount() * 3);
+        for (Ghost ghostCharacter : ghosts) {
+            Matrix4f ghostCharacterMV = new Matrix4f(view).translate(ghostCharacter.getLocation()).scale(0.75f);
+            drawGhost(ghostCharacterMV, projection, ghostArray, ghost.getTriangleCount() * 3, ghostCharacter.getColor());
+        }
+
 
         // pacman
         Matrix4f pacmanMV = new Matrix4f(view).translate(pacmanCharacter.getLocation()).scale(1f);
-        drawPacman(pacmanMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.9f, 0.9f, 0.9f));
+        drawPacman(pacmanMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(1f, 1f, 0f));
         for (int i = 0; i < pacmanCharacter.getExtraLives(); i++) {
             float x = MovementUtils.getAbsoluteXLocation(-2, maze);
             float y = MovementUtils.getAbsoluteYLocation(i, maze);
             Matrix4f pacmanLifeMV = new Matrix4f(view).translate(x, y, 0).scale(1f);
-            drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.9f, 0.9f, 0.9f));
+            drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.9f, 0.9f, 0.1f));
         }
 
 
@@ -968,28 +952,28 @@ public class PacmanGame {
         glUseProgram(0);
     }
 
-    private void drawGhost(Matrix4f model, Matrix4f view, Matrix4f projection, int vao, int count) {
+    private void drawGhost(Matrix4f modelView, Matrix4f projection, int vao, int count, Vector3f color) {
+        // compute model-view-projection matrix
+        Matrix4f mvp = new Matrix4f().set(projection).mul(modelView);
+
+        // compute normal matrix
+        Matrix3f n = modelView.get3x3(new Matrix3f()).invert().transpose();
+
         glUseProgram(ghostProgram);
-        glBindVertexArray(vao);
+        glBindVertexArray(vao); // bind vertex array to draw
 
-        glUniform3f(ghostEyePositionLoc, camera.getEyePosition().x, camera.getEyePosition().y, camera.getEyePosition().z);
+        glUniform1f(ghostAspectUniformLoc, width / (float)height); // update aspect uniform
 
-        FloatBuffer projectionData = BufferUtils.createFloatBuffer(16);
-        FloatBuffer viewData = BufferUtils.createFloatBuffer(16);
-        FloatBuffer modelData = BufferUtils.createFloatBuffer(16);
+        FloatBuffer mvpData = BufferUtils.createFloatBuffer(16);
+        FloatBuffer nData = BufferUtils.createFloatBuffer(9);
+        mvp.get(mvpData);
+        n.get(nData);
+        glUniformMatrix4fv(ghostMvpUniformLoc, false, mvpData); // pass MVP matrix to shader
+        glUniformMatrix3fv(ghostNUniformLoc, false, nData); // pass Normal matrix to shader
+        glUniform3f(ghostColorUniformLoc, color.x, color.y, color.z); // pass object color to shader
 
-        projection.get(projectionData);
-        view.get(viewData);
+        glDrawArrays(GL_TRIANGLES, 0, count);
 
-        glUniformMatrix4fv(ghostProjectionLoc, false, projectionData);
-        glUniformMatrix4fv(ghostViewLoc, false, viewData);
-
-
-        // Task 5: change the draw call to be an instanced draw call glDrawArraysInstanced(int mode, int first, int count, int primcount)
-        // where primcount is the number of instances drawn
-        glDrawArraysInstanced(GL_TRIANGLES, 0, count, NUMBER_OF_INSTANCES_GHOSTS);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
         glUseProgram(0);
     }

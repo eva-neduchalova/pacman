@@ -2,7 +2,7 @@ package cz.evcino.pacman.objects;
 
 import org.joml.Vector3f;
 
-public class AbstractDrawableObject {
+public class DrawableObject {
 
     private float locationX = 0;
     private float locationY = 0;
