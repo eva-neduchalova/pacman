@@ -453,6 +453,7 @@ public class PacmanGame {
         float offsetY = -8f;
         int cubeCounter = 0;
         int dotsCounter = 0;
+        int ghostCounter = 0;
         int x = 0;
         int y = 0;
         for (String row : ApplicationConstants.MAZE_DEFINITION_STRING) {
@@ -475,12 +476,12 @@ public class PacmanGame {
                 } else if ('G' == c) {
                     new Matrix4f().translate(location) // creates model matrix at dotLocation
                             .scale(1f, 1f, 1f).get(dotsCounter * 16, ghostDataBuffer); // and stores it into dotBuffer at selected index
-                    dotsCounter++;
+                    ghostCounter++;
                 } else if ('P' == c) {
                     // Pacman!
-                    new Matrix4f().translate(location) // creates model matrix at dotLocation
-                            .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
-                    dotsCounter++;
+                    // TODO
+                    //new Matrix4f().translate(location) // creates model matrix at dotLocation
+                    //        .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
                 }
                 x++;
             }
@@ -695,11 +696,8 @@ public class PacmanGame {
     }
 
     private void render() {
-        // Task 4: fix this method, so that only the original scene is rendered as a wireframe (won't tell you where)
-        // Resize OpenGL viewport, i.e., the (bitmap) extents to that is the
-        // OpenGL screen space [-1, 1] mapped.
+        
         if (resized) {
-            // Task 1: replace glViewport(...) with resizeFboTextures()
             resizeFboTextures();
             resized = false;
         }
