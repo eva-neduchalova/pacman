@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6;
+package cz.evcino.pacman;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MAJOR;
@@ -117,6 +117,8 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.joml.Matrix4f;
@@ -131,9 +133,10 @@ import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cz.muni.fi.pv112.cv6.utils.ModelUtils;
-import cz.muni.fi.pv112.cv6.utils.ShaderUtils;
-import cz.muni.fi.pv112.cv6.utils.TextureUtils;
+import cz.evcino.pacman.objects.Dot;
+import cz.evcino.pacman.utils.ModelUtils;
+import cz.evcino.pacman.utils.ShaderUtils;
+import cz.evcino.pacman.utils.TextureUtils;
 
 
 public class PacmanGame {
@@ -177,15 +180,18 @@ public class PacmanGame {
     private ObjLoader cube;
     private ObjLoader dot;
     private ObjLoader ghost;
+    private ObjLoader pacman;
 
     // our OpenGL resources
     private int cubeBuffer;
     private int dotArray;
     private int ghostBuffer;
+    private int pacmanBuffer;
 
     private int cubeArray;
     private int dotBuffer;
     private int ghostArray;
+    private int pacmanArray;
 
 
     // our GLSL resources
@@ -209,6 +215,12 @@ public class PacmanGame {
     private int ghostProjectionLoc;
     private int ghostViewLoc;
     private int ghostEyePositionLoc;
+    
+    private int pacmanProgram;
+    private int pacmanAspectUniformLoc;
+    private int pacmanMvpUniformLoc;
+    private int pacmanNUniformLoc;
+    private int pacmanColorUniformLoc;
 
 
     FloatBuffer cubeDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES_CUBES * 16);
@@ -429,6 +441,7 @@ public class PacmanGame {
             cubeProgram = ShaderUtils.loadProgramByShaderMainName("cube");
             dotProgram = ShaderUtils.loadProgramByShaderMainName("dot");
             ghostProgram = ShaderUtils.loadProgramByShaderMainName("ghost");
+            pacmanProgram = ShaderUtils.loadProgramByShaderMainName("pacman");
             woodTexture = TextureUtils.loadTextureByFilename("wood.jpg");
         } catch (IOException ex) {
             logger.error("it's broken", ex);
@@ -453,6 +466,7 @@ public class PacmanGame {
         float offsetY = -8f;
         int cubeCounter = 0;
         int dotsCounter = 0;
+        List<Dot> dotsList = new LinkedList<>();
         int ghostCounter = 0;
         int x = 0;
         int y = 0;
@@ -490,13 +504,23 @@ public class PacmanGame {
             }
             y++;
         }
+        
+     // model program uniforms
+        pacmanAspectUniformLoc = glGetUniformLocation(pacmanProgram, "aspect");
+        pacmanMvpUniformLoc = glGetUniformLocation(pacmanProgram, "MVP");
+        pacmanNUniformLoc = glGetUniformLocation(pacmanProgram, "N");
+        pacmanColorUniformLoc = glGetUniformLocation(pacmanProgram, "color");
+        
+        
+        
 
         // create buffers with geometry
-        int[] buffers = new int[3];
+        int[] buffers = new int[4];
         glGenBuffers(buffers);
         cubeBuffer = buffers[0];
         dotBuffer = buffers[1];
         ghostBuffer = buffers[2];
+        pacmanBuffer = buffers[3];
 
         // fill a buffers with geometry
         // glBindBuffer(GL_ARRAY_BUFFER, ghostBuffer);
@@ -508,18 +532,22 @@ public class PacmanGame {
         // load dot and fill buffer with dot data
         dot = ModelUtils.loadModelData("sphere.obj", dotBuffer);
 
-        // load ghost and fill buffer with dot data
+        // load ghost and fill buffer with ghost data
         ghost = ModelUtils.loadModelData("teapot.obj", ghostBuffer);
+
+        // load pacman and fill buffer with pacman data
+        pacman = ModelUtils.loadModelData("teapot.obj", pacmanBuffer);
 
         // clear buffer binding, so that other code doesn't presume it (easier error detection)
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // create a vertex array object for the geometry
-        int[] arrays = new int[3];
+        int[] arrays = new int[4];
         glGenVertexArrays(arrays);
         cubeArray = arrays[0];
         dotArray = arrays[1];
         ghostArray = arrays[2];
+        pacmanArray = arrays[3];
 
         {
             // get cube program attributes
@@ -537,6 +565,7 @@ public class PacmanGame {
             glEnableVertexAttribArray(texcoordAttribLoc);
             glVertexAttribPointer(texcoordAttribLoc, 2, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, TEXCOORD_OFFSET);
         }
+        
         {
             // get dot program attributes
             int positionAttribLoc = glGetAttribLocation(dotProgram, "position");
@@ -572,6 +601,23 @@ public class PacmanGame {
             glVertexAttribPointer(texcoordAttribLoc, 2, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, TEXCOORD_OFFSET);
             // glEnableVertexAttribArray(colorAttribLoc);
             // glVertexAttribPointer(colorAttribLoc, 3, GL_FLOAT, false, SIZEOF_GHOST_VERTEX, COLOR_OFFSET);
+        }
+        
+        {
+         // get pacman program attributes
+            int positionAttribLoc = glGetAttribLocation(pacmanProgram, "position");
+            int normalAttribLoc = glGetAttribLocation(pacmanProgram, "normal");
+            int texcoordAttribLoc = glGetAttribLocation(pacmanProgram, "texcoord");
+            
+
+            // bind pacman buffer
+            glBindVertexArray(pacmanArray);
+            glBindBuffer(GL_ARRAY_BUFFER, pacmanBuffer);
+            glEnableVertexAttribArray(positionAttribLoc);
+            glVertexAttribPointer(positionAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, 0);
+            glEnableVertexAttribArray(normalAttribLoc);
+            glVertexAttribPointer(normalAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, NORMAL_OFFSET);
+
         }
 
         // clear bindings, so that other code doesn't presume it (easier error detection)

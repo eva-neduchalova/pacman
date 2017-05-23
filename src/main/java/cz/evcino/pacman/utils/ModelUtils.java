@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6.utils;
+package cz.evcino.pacman.utils;
 
 import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
 import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
@@ -12,8 +12,8 @@ import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cz.muni.fi.pv112.cv6.ApplicationConstants;
-import cz.muni.fi.pv112.cv6.ObjLoader;
+import cz.evcino.pacman.ApplicationConstants;
+import cz.evcino.pacman.ObjLoader;
 
 public class ModelUtils {
 

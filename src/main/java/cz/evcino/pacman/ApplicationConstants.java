@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6;
+package cz.evcino.pacman;
 
 
 public class ApplicationConstants {

@@ -30,7 +30,7 @@ void main() {
     float granko = step(0.3, length(granko_coord - 0.5));
     // Task 6: change red to input color, so we have differently dotted dots
     //vec3 color = mix(vColor, vec3(1.0), granko);
-    vec3 color = vec3(1,1,0);
+    vec3 color = vec3(1,0,1);
 
     vec3 lighting = phong(color, color, vec3(1), 32);
 

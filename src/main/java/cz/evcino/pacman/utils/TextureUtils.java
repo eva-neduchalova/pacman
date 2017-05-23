@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6.utils;
+package cz.evcino.pacman.utils;
 
 import static org.lwjgl.opengl.GL11.GL_LINEAR;
 import static org.lwjgl.opengl.GL11.GL_LINEAR_MIPMAP_LINEAR;
@@ -29,7 +29,7 @@ import javax.imageio.ImageIO;
 import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 
-import cz.muni.fi.pv112.cv6.ApplicationConstants;
+import cz.evcino.pacman.ApplicationConstants;
 
 public class TextureUtils {
 
@@ -85,7 +85,7 @@ public class TextureUtils {
         }
         return bgra;
     }
-    
+
     private Vector4f randomColor() {
         Random random = new Random();
 

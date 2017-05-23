@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6;
+package cz.evcino.pacman;
 
 import java.io.BufferedReader;
 import java.io.File;

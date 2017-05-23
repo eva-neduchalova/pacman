@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6;
+package cz.evcino.pacman;
 
 import org.joml.Vector3f;
 import org.slf4j.Logger;

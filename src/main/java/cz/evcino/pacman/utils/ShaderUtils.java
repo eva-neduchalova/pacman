@@ -1,4 +1,4 @@
-package cz.muni.fi.pv112.cv6.utils;
+package cz.evcino.pacman.utils;
 
 import static org.lwjgl.opengl.GL11.GL_FALSE;
 import static org.lwjgl.opengl.GL20.GL_COMPILE_STATUS;
@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
 
-import cz.muni.fi.pv112.cv6.ApplicationConstants;
+import cz.evcino.pacman.ApplicationConstants;
 
 public class ShaderUtils {
     
