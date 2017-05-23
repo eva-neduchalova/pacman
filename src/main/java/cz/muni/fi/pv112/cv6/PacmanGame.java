@@ -213,7 +213,7 @@ public class PacmanGame {
 
     FloatBuffer cubeDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES_CUBES * 16);
     FloatBuffer dotDataBuffer = BufferUtils.createFloatBuffer((NUMBER_OF_INSTANCES_DOTS + NUMBER_OF_INSTANCES_SUPERDOTS) * (16 + 4));
-    FloatBuffer ghostDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES_GHOSTS * 16);
+    FloatBuffer ghostDataBuffer = BufferUtils.createFloatBuffer(NUMBER_OF_INSTANCES_GHOSTS * (16 + 4));
 
 
     // Fullscreen quad
@@ -241,14 +241,14 @@ public class PacmanGame {
     private int lightDataUBO;
 
     // Light data uniform buffer
+    private final int CUBE_DATA_INDEX = 1;
+    private int cubeDataUBO;
+
+    // Light data uniform buffer
     private final int DOT_DATA_INDEX = 1;
     private int dotDataUBO;
 
     // Light data uniform buffer
-    private final int CUBE_DATA_INDEX = 1;
-    private int cubeDataUBO;
-    
- // Light data uniform buffer
     private final int GHOST_DATA_INDEX = 1;
     private int ghostDataUBO;
 
@@ -466,22 +466,25 @@ public class PacmanGame {
                     new Matrix4f().translate(location).get(cubeCounter * 16, cubeDataBuffer);
                     cubeCounter++;
                 } else if ('.' == c) {
-                    new Matrix4f().translate(location) // creates model matrix at dotLocation
-                            .scale(0.25f, 0.25f, 0.25f).get(dotsCounter * 16, dotDataBuffer); // store it into dotBuffer at selected index
+                    new Matrix4f().translate(location) // creates model matrix at location
+                            .scale(0.25f, 0.25f, 0.25f).get(dotsCounter * 16, dotDataBuffer); // store it into dotDataBuffer at selected
+                                                                                              // index
                     dotsCounter++;
                 } else if ('O' == c) {
-                    new Matrix4f().translate(location) // creates model matrix at dotLocation
-                            .scale(0.5f, 0.5f, 0.5f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                    new Matrix4f().translate(location) // creates model matrix at location
+                            .scale(0.5f, 0.5f, 0.5f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotDataBuffer at selected
+                                                                                           // index
                     dotsCounter++;
                 } else if ('G' == c) {
-                    new Matrix4f().translate(location) // creates model matrix at dotLocation
-                            .scale(1f, 1f, 1f).get(dotsCounter * 16, ghostDataBuffer); // and stores it into dotBuffer at selected index
+                    new Matrix4f().translate(location) // creates model matrix at location
+                            .scale(1f, 1f, 1f).get(ghostCounter * 16, ghostDataBuffer); // and stores it into ghostDataBuffer at selected
+                                                                                        // index
                     ghostCounter++;
                 } else if ('P' == c) {
                     // Pacman!
                     // TODO
-                    //new Matrix4f().translate(location) // creates model matrix at dotLocation
-                    //        .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
+                    // new Matrix4f().translate(location) // creates model matrix at location
+                    // .scale(1f, 1f, 1f).get(dotsCounter * 16, dotDataBuffer); // and stores it into dotBuffer at selected index
                 }
                 x++;
             }
@@ -577,7 +580,6 @@ public class PacmanGame {
     }
 
 
-
     private void initPostprocessing() {
         // Create post-processing shader program
         // Task 1: examine initialization of all objects needed for off-screen rendering and post-processing
@@ -662,6 +664,9 @@ public class PacmanGame {
         int cubeDataLoc = glGetUniformBlockIndex(cubeProgram, "CubeData");
         glUniformBlockBinding(cubeProgram, cubeDataLoc, CUBE_DATA_INDEX);
         
+        int ghostLightDataLoc = glGetUniformBlockIndex(ghostProgram, "LightData");
+        glUniformBlockBinding(ghostProgram, ghostLightDataLoc, LIGHT_DATA_INDEX);
+
         int ghostDataLoc = glGetUniformBlockIndex(ghostProgram, "GhostData");
         glUniformBlockBinding(ghostProgram, ghostDataLoc, GHOST_DATA_INDEX);
 
@@ -675,7 +680,7 @@ public class PacmanGame {
         // bind it, and upload dotDataBuffer as buffer data
         // Task 10: get an unused buffer name from the generated buffer names and store it as cubeDataUBO
         // bind it, and upload the cubeDataBuffer as buffer data
-        int[] buffers = new int[3];
+        int[] buffers = new int[4];
         glGenBuffers(buffers);
 
         lightDataUBO = buffers[0];
@@ -683,20 +688,25 @@ public class PacmanGame {
         glBufferData(GL_UNIFORM_BUFFER, lightData, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-        dotDataUBO = buffers[1];
+        cubeDataUBO = buffers[1];
+        glBindBuffer(GL_UNIFORM_BUFFER, cubeDataUBO);
+        glBufferData(GL_UNIFORM_BUFFER, cubeDataBuffer, GL_STATIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        dotDataUBO = buffers[2];
         glBindBuffer(GL_UNIFORM_BUFFER, dotDataUBO);
         glBufferData(GL_UNIFORM_BUFFER, dotDataBuffer, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-        cubeDataUBO = buffers[2];
-        glBindBuffer(GL_UNIFORM_BUFFER, cubeDataUBO);
-        glBufferData(GL_UNIFORM_BUFFER, cubeDataBuffer, GL_STATIC_DRAW);
+        ghostDataUBO = buffers[3];
+        glBindBuffer(GL_UNIFORM_BUFFER, ghostDataUBO);
+        glBufferData(GL_UNIFORM_BUFFER, ghostDataBuffer, GL_STATIC_DRAW);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     }
 
     private void render() {
-        
+
         if (resized) {
             resizeFboTextures();
             resized = false;
@@ -729,19 +739,17 @@ public class PacmanGame {
         glBufferSubData(GL_UNIFORM_BUFFER, 0, new float[] { lightPosition.x, lightPosition.y, lightPosition.z, lightPosition.w });
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-        // Task 7: bind the light uniform buffer using glBindBufferBase(GL_UNIFORM_BUFFER, int index, int buffer)
-        // where index is your uniformBlockBinding you used previously
-        // Task 9: bind uniform buffer for the dot data, using the same function as previously
-        glBindBufferBase(GL_UNIFORM_BUFFER, LIGHT_DATA_INDEX, lightDataUBO);
-        glBindBufferBase(GL_UNIFORM_BUFFER, DOT_DATA_INDEX, dotDataUBO);
-
-        drawDot(new Matrix4f(), view, projection, dotArray, dot.getTriangleCount() * 3);
-
-        // Task 10: rebind buffer base on index 1 (DOT_DATA_INDEX) to CUBE_DATA_INDEX to cubeDataUBO
-        // and add drawCubes() call to draw the cubes
+        // cubes
         glBindBufferBase(GL_UNIFORM_BUFFER, CUBE_DATA_INDEX, cubeDataUBO);
         drawCubes(view, projection);
-        
+
+        // dots
+        glBindBufferBase(GL_UNIFORM_BUFFER, LIGHT_DATA_INDEX, lightDataUBO);
+        glBindBufferBase(GL_UNIFORM_BUFFER, DOT_DATA_INDEX, dotDataUBO);
+        drawDot(new Matrix4f(), view, projection, dotArray, dot.getTriangleCount() * 3);
+
+        // ghosts
+        glBindBufferBase(GL_UNIFORM_BUFFER, LIGHT_DATA_INDEX, lightDataUBO);
         glBindBufferBase(GL_UNIFORM_BUFFER, GHOST_DATA_INDEX, ghostDataUBO);
         drawGhost(new Matrix4f(), view, projection, ghostArray, ghost.getTriangleCount() * 3);
 
@@ -782,7 +790,6 @@ public class PacmanGame {
         glEnable(GL_DEPTH_TEST);
     }
 
-   
 
     // Task 1: examine
     private void resizeFboTextures() {
@@ -795,7 +802,6 @@ public class PacmanGame {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, fboWidth, fboHeight, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, (float[])null);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-
 
 
     private void drawCubes(Matrix4f view, Matrix4f projection) {
@@ -821,7 +827,7 @@ public class PacmanGame {
         glBindVertexArray(0);
         glUseProgram(0);
     }
-    
+
     private void drawDot(Matrix4f model, Matrix4f view, Matrix4f projection, int vao, int count) {
         glUseProgram(dotProgram);
         glBindVertexArray(vao);
@@ -847,7 +853,7 @@ public class PacmanGame {
         glBindVertexArray(0);
         glUseProgram(0);
     }
-    
+
     private void drawGhost(Matrix4f model, Matrix4f view, Matrix4f projection, int vao, int count) {
         glUseProgram(ghostProgram);
         glBindVertexArray(vao);
