@@ -1,5 +1,7 @@
 package cz.evcino.pacman.objects;
 
+import cz.evcino.pacman.enums.MazeLocationStatus;
+
 public class Maze {
 
     public static final float SQUARE_LENGTH = 2f;

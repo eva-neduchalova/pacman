@@ -135,10 +135,10 @@ import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cz.evcino.pacman.enums.MazeLocationStatus;
 import cz.evcino.pacman.enums.MovementDirection;
 import cz.evcino.pacman.objects.Ghost;
 import cz.evcino.pacman.objects.Maze;
-import cz.evcino.pacman.objects.MazeLocationStatus;
 import cz.evcino.pacman.objects.Pacman;
 import cz.evcino.pacman.utils.ModelUtils;
 import cz.evcino.pacman.utils.MovementUtils;
@@ -448,10 +448,12 @@ public class PacmanGame {
             for (Ghost ghost : ghosts) {
                 boolean ghostCanTurn = MovementUtils.canGhostChangeDirection(ghost, maze);
                 if (ghostCanTurn) {
-                    MovementUtils.selectGhostDirection(ghost, maze);
+                    MovementUtils.selectGhostDirection(ghost, pacmanCharacter, maze);
                 }
                 ghost.move();
+                MovementUtils.fixGhostPosition(ghost, maze);
             }
+
             if (MovementUtils.canMove(pacmanCharacter, maze)) {
                 boolean dotsUpdateRequired = MovementUtils.evaluateDots(pacmanCharacter, maze);
                 if (dotsUpdateRequired) {
@@ -461,7 +463,6 @@ public class PacmanGame {
                     glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 }
                 pacmanCharacter.move();
-
             }
 
             render();
@@ -516,7 +517,7 @@ public class PacmanGame {
                 Vector3f location = new Vector3f((x + offsetX) * Maze.SQUARE_LENGTH, (y + offsetY) * Maze.SQUARE_LENGTH, 0);
                 if ('X' == c) {
                     maze.setValue(x, y, MazeLocationStatus.WALL);
-                    new Matrix4f().translate(location).get(cubeCounter * 16, cubeDataBuffer);
+                    new Matrix4f().translate(location).scale(1f,1f,0.25f).get(cubeCounter * 16, cubeDataBuffer);
                     cubeCounter++;
                 } else if ('.' == c) {
                     maze.setValue(x, y, MazeLocationStatus.DOT);
@@ -524,6 +525,7 @@ public class PacmanGame {
                     maze.setValue(x, y, MazeLocationStatus.POWER_DOT);
                 } else if ('G' == c) {
                     Ghost ghostCharacter = new Ghost();
+                    ghostCharacter.setDefaultLocation(location);
                     ghostCharacter.setLocation(location);
                     ghostCharacter.setColor(Ghost.COLORS[ghosts.size() % Ghost.COLORS.length]);
                     ghostCharacter.setDirection(MovementDirection.values()[ghosts.size() % MovementDirection.values().length]);
@@ -535,6 +537,7 @@ public class PacmanGame {
                         throw new IllegalArgumentException("two (or more) Pacmans at one playground!");
                     }
                     pacmanCharacter = new Pacman();
+                    pacmanCharacter.setDefaultLocation(location);
                     pacmanCharacter.setLocation(location);
                     maze.setValue(x, y, MazeLocationStatus.EMPTY);
                 }
@@ -577,10 +580,10 @@ public class PacmanGame {
         dot = ModelUtils.loadModelData("sphere.obj", dotBuffer);
 
         // load ghost and fill buffer with ghost data
-        ghost = ModelUtils.loadModelData("cube.obj", ghostBuffer);
+        ghost = ModelUtils.loadModelData("ghost.obj", ghostBuffer);
 
         // load pacman and fill buffer with pacman data
-        pacman = ModelUtils.loadModelData("cube.obj", pacmanBuffer);
+        pacman = ModelUtils.loadModelData("pacman.obj", pacmanBuffer);
 
         // clear buffer binding, so that other code doesn't presume it (easier error detection)
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -835,19 +838,39 @@ public class PacmanGame {
 
         // ghosts
         for (Ghost ghostCharacter : ghosts) {
-            Matrix4f ghostCharacterMV = new Matrix4f(view).translate(ghostCharacter.getLocation()).scale(0.75f);
+            Matrix4f ghostCharacterMV = new Matrix4f(view).translate(ghostCharacter.getLocation())
+                    .rotate((float)Math.toRadians(90), 1f, 0f, 0f).scale(Ghost.GHOST_DIAMETER);
+            if (MovementDirection.LEFT.equals(pacmanCharacter.getDirection())) {
+                ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(-90), 0f, 1f, 0f);
+            } else if (MovementDirection.RIGHT.equals(pacmanCharacter.getDirection())) {
+                ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(90), 0f, 1f, 0f);
+            } else if (MovementDirection.UP.equals(pacmanCharacter.getDirection())) {
+                ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(180), 0f, 1f, 0f);
+            }
             drawGhost(ghostCharacterMV, projection, ghostArray, ghost.getTriangleCount() * 3, ghostCharacter.getColor());
         }
 
 
         // pacman
-        Matrix4f pacmanMV = new Matrix4f(view).translate(pacmanCharacter.getLocation()).scale(1f);
-        drawPacman(pacmanMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(1f, 1f, 0f));
+        
+        
+        Matrix4f pacmanMV = new Matrix4f(view).translate(pacmanCharacter.getLocation()).rotate((float)Math.toRadians(90), 1f, 0f, 0f);
+        // after first rotation pacman is facing bottom of screen.scale(Pacman.PACMAN_DIAMETER);
+        if (MovementDirection.LEFT.equals(pacmanCharacter.getDirection())) {
+            pacmanMV = pacmanMV.rotate((float)Math.toRadians(-90), 0f, 1f, 0f);
+        } else if (MovementDirection.RIGHT.equals(pacmanCharacter.getDirection())) {
+            pacmanMV = pacmanMV.rotate((float)Math.toRadians(90), 0f, 1f, 0f);
+        } else if (MovementDirection.UP.equals(pacmanCharacter.getDirection())) {
+            pacmanMV = pacmanMV.rotate((float)Math.toRadians(180), 0f, 1f, 0f);
+        }
+        pacmanMV = pacmanMV.scale(Pacman.PACMAN_DIAMETER);
+
+        drawPacman(pacmanMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.188f, 0.83921f, 0.784f));
         for (int i = 0; i < pacmanCharacter.getExtraLives(); i++) {
             float x = MovementUtils.getAbsoluteXLocation(-2, maze);
             float y = MovementUtils.getAbsoluteYLocation(i, maze);
-            Matrix4f pacmanLifeMV = new Matrix4f(view).translate(x, y, 0).scale(1f);
-            drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.9f, 0.9f, 0.1f));
+            Matrix4f pacmanLifeMV = new Matrix4f(view).translate(x, y, 0).scale(Pacman.PACMAN_DIAMETER);
+            drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.188f, 0.83921f, 0.784f));
         }
 
 

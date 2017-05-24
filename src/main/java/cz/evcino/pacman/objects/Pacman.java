@@ -1,6 +1,8 @@
 package cz.evcino.pacman.objects;
 
-public class Pacman extends MovableObject {
+public class Pacman extends AbstractMovableObject {
+
+    public static final float PACMAN_DIAMETER = 0.8f;
 
     private int extraLives = 3;
     private long score = 0;
@@ -20,6 +22,11 @@ public class Pacman extends MovableObject {
 
     public void setScore(long score) {
         this.score = score;
+    }
+
+    @Override
+    public float getDiameter() {
+        return PACMAN_DIAMETER;
     }
 
 }

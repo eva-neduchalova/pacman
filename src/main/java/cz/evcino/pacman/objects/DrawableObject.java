@@ -4,42 +4,42 @@ import org.joml.Vector3f;
 
 public class DrawableObject {
 
-    private float locationX = 0;
-    private float locationY = 0;
-    private float locationZ = 0;
+    private float defaultDefaultLocationX = 0;
+    private float defaultDefaultLocationY = 0;
+    private float defaultDefaultLocationZ = 0;
 
-    public float getLocationX() {
-        return locationX;
+    public float getDefaultLocationX() {
+        return defaultDefaultLocationX;
     }
 
-    public void setLocationX(float locationX) {
-        this.locationX = locationX;
+    public void setDefaultLocationX(float defaultDefaultLocationX) {
+        this.defaultDefaultLocationX = defaultDefaultLocationX;
     }
 
-    public float getLocationY() {
-        return locationY;
+    public float getDefaultLocationY() {
+        return defaultDefaultLocationY;
     }
 
-    public void setLocationY(float locationY) {
-        this.locationY = locationY;
+    public void setDefaultLocationY(float defaultDefaultLocationY) {
+        this.defaultDefaultLocationY = defaultDefaultLocationY;
     }
 
-    public float getLocationZ() {
-        return locationZ;
+    public float getDefaultLocationZ() {
+        return defaultDefaultLocationZ;
     }
 
-    public void setLocationZ(float locationZ) {
-        this.locationZ = locationZ;
+    public void setDefaultLocationZ(float defaultDefaultLocationZ) {
+        this.defaultDefaultLocationZ = defaultDefaultLocationZ;
     }
 
-    public Vector3f getLocation() {
-        return new Vector3f(locationX, locationY, locationZ);
+    public Vector3f getDefaultLocation() {
+        return new Vector3f(defaultDefaultLocationX, defaultDefaultLocationY, defaultDefaultLocationZ);
     }
 
-    public void setLocation(Vector3f location) {
-        setLocationX(location.x);
-        setLocationY(location.y);
-        setLocationZ(location.z);
+    public void setDefaultLocation(Vector3f defaultDefaultLocation) {
+        setDefaultLocationX(defaultDefaultLocation.x);
+        setDefaultLocationY(defaultDefaultLocation.y);
+        setDefaultLocationZ(defaultDefaultLocation.z);
     }
 
 }

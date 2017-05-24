@@ -1,4 +1,4 @@
-package cz.evcino.pacman.objects;
+package cz.evcino.pacman.enums;
 
 public enum MazeLocationStatus {
     WALL("X"),
