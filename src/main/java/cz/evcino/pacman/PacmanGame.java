@@ -139,6 +139,7 @@ import cz.evcino.pacman.objects.Pacman;
 import cz.evcino.pacman.utils.ModelUtils;
 import cz.evcino.pacman.utils.MovementUtils;
 import cz.evcino.pacman.utils.ShaderUtils;
+import cz.evcino.pacman.utils.TextToGraphics;
 import cz.evcino.pacman.utils.TextureUtils;
 
 
@@ -815,11 +816,11 @@ public class PacmanGame {
         for (Ghost ghostCharacter : ghosts) {
             Matrix4f ghostCharacterMV = new Matrix4f(view).translate(ghostCharacter.getLocation())
                     .rotate((float)Math.toRadians(90), 1f, 0f, 0f).scale(Ghost.GHOST_OBJECT_SCALE);
-            if (MovementDirection.LEFT.equals(pacmanCharacter.getDirection())) {
+            if (MovementDirection.LEFT.equals(ghostCharacter.getDirection())) {
                 ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(-90), 0f, 1f, 0f);
-            } else if (MovementDirection.RIGHT.equals(pacmanCharacter.getDirection())) {
+            } else if (MovementDirection.RIGHT.equals(ghostCharacter.getDirection())) {
                 ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(90), 0f, 1f, 0f);
-            } else if (MovementDirection.UP.equals(pacmanCharacter.getDirection())) {
+            } else if (MovementDirection.UP.equals(ghostCharacter.getDirection())) {
                 ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(180), 0f, 1f, 0f);
             }
             drawGhost(ghostCharacterMV, projection, ghostArray, ghost.getTriangleCount() * 3, ghostCharacter.getApplicableColor());
@@ -848,6 +849,21 @@ public class PacmanGame {
             drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.188f, 0.83921f, 0.784f));
         }
 
+
+        // draw score text
+//        String filepath = "c:/temp/score_string.png";
+//        TextToGraphics.printText("Score: " + pacmanCharacter.getScore(), filepath);
+//        int scoreTexture;
+//        try {
+//            scoreTexture = TextureUtils.loadTextureByFilepath(filepath);
+//        } catch (IOException e) {
+//            logger.error("could not load score texture", e);
+//            System.exit(1);
+//        }
+       
+
+       // GL11.glTexImage2D(target, level, internalformat, fboWidth, fboHeight, border, format, type, pixels);
+        
 
         // Task 1: setup rendering to window (default/"main") framebuffer:
         // bind window framebuffer as a current target with glBindframeBuffer(GL_FRAMEBUFFER, 0)

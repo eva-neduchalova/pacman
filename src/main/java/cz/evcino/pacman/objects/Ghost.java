@@ -110,17 +110,11 @@ public class Ghost extends AbstractMovableObject {
     @Override
     public void setLocationX(float locationX) {
         super.setLocationX(locationX);
-        if (id == 1) {
-            System.out.println(toLogString());
-        }
     }
 
     @Override
     public void setLocationY(float locationY) {
         super.setLocationY(locationY);
-        if (id == 1) {
-            System.out.println(toLogString());
-        }
     }
 
 

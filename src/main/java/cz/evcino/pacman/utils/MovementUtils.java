@@ -1,11 +1,17 @@
 package cz.evcino.pacman.utils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+
+import org.apache.commons.io.FileUtils;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 import org.slf4j.Logger;
@@ -152,6 +158,7 @@ public class MovementUtils {
                 if (MazeLocationStatus.POWER_DOT.equals(mazeStatus)) {
                     for (Ghost ghost : ghosts) {
                         ghost.setStatus(GhostStatus.BLIND);
+                        playSound("C:/temp/downloads/opera/news-music-theme-10-seconds-countdown.wav");
                     }
                 }
 
@@ -171,6 +178,13 @@ public class MovementUtils {
                     ghost.setStatus(GhostStatus.CHASE);
                     pacman.setScore(pacman.getScore() + (GHOST_SCORE));
                 } else {
+                    playSound("C:/temp/downloads/opera/battle003.wav");
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
                     pacman.setExtraLives(pacman.getExtraLives() - 1);
                     pacman.setLocation(pacman.getDefaultLocation());
                     for (Ghost ghost2 : ghosts) {
@@ -429,6 +443,19 @@ public class MovementUtils {
             // fix position
             ghost.setLocationX(mazeAbsolutX);
             ghost.setLocationY(mazeAbsolutY);
+        }
+    }
+    
+    
+    public static void playSound(String filepath) {
+        try {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File(filepath).getAbsoluteFile());
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioInputStream);
+            clip.start();
+        } catch (Exception ex) {
+            System.out.println("Error with playing sound.");
+            ex.printStackTrace();
         }
     }
 

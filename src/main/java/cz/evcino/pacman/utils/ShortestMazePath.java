@@ -182,7 +182,7 @@ public class ShortestMazePath {
         while (pathNode != null) {
             // System.out.println("Reached pathNode" + pathNode);
             if (pathNode.getWeight() == 1) {
-                System.out.println("Final pathNode:" + pathNode + ". Start pathNode:" + startNode);
+                //System.out.println("Final pathNode:" + pathNode + ". Start pathNode:" + startNode);
                 return new Vector2i(pathNode.x, pathNode.y);
             }
             pathNode = pathNode.getPrevious();

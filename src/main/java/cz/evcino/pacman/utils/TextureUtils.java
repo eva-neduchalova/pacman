@@ -34,10 +34,10 @@ import cz.evcino.pacman.ApplicationConstants;
 public class TextureUtils {
 
     public static int loadTextureByFilename(String filename) throws IOException {
-        return loadTexture(ApplicationConstants.PATH_TO_TEXTURES + filename);
+        return loadTextureByFilepath(ApplicationConstants.PATH_TO_TEXTURES + filename);
     }
 
-    private static int loadTexture(String filepath) throws IOException {
+    public static int loadTextureByFilepath(String filepath) throws IOException {
         BufferedImage image = ImageIO.read(new FileInputStream(filepath)); // ImageIO.read(Cv6.class.getResourceAsStream(filename));
         byte[] pixels = ((DataBufferByte)image.getRaster().getDataBuffer()).getData();
 
