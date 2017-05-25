@@ -10,6 +10,8 @@ public class Maze {
     private int rows;
     private int columns;
 
+    private int remainingDotsCount = 0;
+
 
     public Maze(int mazeRows, int mazeColumns) {
         super();
@@ -27,10 +29,21 @@ public class Maze {
     }
 
     public MazeLocationStatus getValue(int row, int column) {
+        if (row >= columns || column >= rows) {
+            return null;
+        }
         return mazeData[row][column];
     }
 
     public void setValue(int row, int column, MazeLocationStatus value) {
+        if (MazeLocationStatus.DOT.equals(value) || MazeLocationStatus.POWER_DOT.equals(value)) {
+            remainingDotsCount++;
+        } else if (MazeLocationStatus.EMPTY.equals(value)) {
+            MazeLocationStatus original = getValue(row, column);
+            if (MazeLocationStatus.DOT.equals(original) || MazeLocationStatus.POWER_DOT.equals(original)) {
+                remainingDotsCount--;
+            }
+        }
         mazeData[row][column] = value;
     }
 
@@ -41,6 +54,16 @@ public class Maze {
     public int getColumns() {
         return columns;
     }
+
+
+    public int getRemainingDotsCount() {
+        return remainingDotsCount;
+    }
+
+    public void setRemainingDotsCount(int remainingDotsCount) {
+        this.remainingDotsCount = remainingDotsCount;
+    }
+
 
     public String toLogString() {
         StringBuilder result = new StringBuilder("\n");

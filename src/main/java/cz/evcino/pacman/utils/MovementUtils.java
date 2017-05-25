@@ -7,32 +7,38 @@ import java.util.Random;
 import java.util.Set;
 
 import org.joml.Vector2f;
+import org.joml.Vector2i;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cz.evcino.pacman.PacmanGame;
 import cz.evcino.pacman.enums.GhostStatus;
 import cz.evcino.pacman.enums.MazeLocationStatus;
 import cz.evcino.pacman.enums.MovementDirection;
+import cz.evcino.pacman.objects.AbstractMovableObject;
 import cz.evcino.pacman.objects.Ghost;
 import cz.evcino.pacman.objects.Maze;
-import cz.evcino.pacman.objects.AbstractMovableObject;
 import cz.evcino.pacman.objects.Pacman;
 
 public class MovementUtils {
 
     protected static final Logger logger = LoggerFactory.getLogger(MovementUtils.class);
 
-    public static final float DOT_DIAMETER = 0.25f;
+    public static final float DOT_SCALE = 0.25f;
     public static final long DOT_SCORE = 100;
-    public static final float SUPERDOT_DIAMETER = 0.5f;
+    public static final float SUPERDOT_SCALE = 0.5f;
     public static final long SUPERDOT_SCORE = 200;
 
-
-    private static final float TOLERANCE = 0.1f;
+    private static final long GHOST_SCORE = 0;
 
 
     public static boolean canMove(AbstractMovableObject movable, Maze maze) {
+
+        int currentMazeX = getRelativeXLocationAfterStep(movable, maze, null);
+        int currentMazeY = getRelativeYLocationAfterStep(movable, maze, null);
+
+        float currentMazeXAbsolute = convertRelativeXToAbsolute(currentMazeX, maze);
+        float currentMazeYAbsolute = convertRelativeYToAbsolute(currentMazeY, maze);
+
         int newMazeX = getRelativeXLocationAfterStep(movable, maze, movable.getDirection());
         int newMazeY = getRelativeYLocationAfterStep(movable, maze, movable.getDirection());
 
@@ -42,27 +48,70 @@ public class MovementUtils {
             return false;
         }
 
+        float currentMovableX = getAbsoluteXLocationAfterStep(movable, maze, null);
+        float currentMovableY = getAbsoluteYLocationAfterStep(movable, maze, null);
+
         float newMovableX = getAbsoluteXLocationAfterStep(movable, maze, movable.getDirection());
         float newMovableY = getAbsoluteYLocationAfterStep(movable, maze, movable.getDirection());
 
-        Vector2f rightSidePosition = new Vector2f(newMovableX + movable.getDiameter(), newMovableY);
-        Vector2f leftSidePosition = new Vector2f(newMovableX - movable.getDiameter(), newMovableY);
-        Vector2f topSidePosition = new Vector2f(newMovableX, newMovableY + movable.getDiameter());
-        Vector2f bottomSidePosition = new Vector2f(newMovableX, newMovableY - movable.getDiameter());
+        double currentDistanceToCenter = Math.hypot(currentMovableX - currentMazeXAbsolute, currentMovableY - currentMazeYAbsolute);
+        double newDistanceToCenter = Math.hypot(newMovableX - currentMazeXAbsolute, newMovableY - currentMazeXAbsolute);
+        boolean headingToCenterOfCurrentSquare = newDistanceToCenter < currentDistanceToCenter;
+
+        if (headingToCenterOfCurrentSquare) {
+            return true;
+        }
+
+        // heading towards another square - requires another check
+
+        Vector2f rightSidePosition = new Vector2f(newMovableX + 0.8f, newMovableY);
+        Vector2f leftSidePosition = new Vector2f(newMovableX - 0.8f, newMovableY);
+        Vector2f topSidePosition = new Vector2f(newMovableX, newMovableY + 0.8f);
+        Vector2f bottomSidePosition = new Vector2f(newMovableX, newMovableY - 0.8f);
 
         Set<Vector2f> positionsToCheck = new HashSet<>();
-        if (movable.getDirection() != MovementDirection.LEFT) {
-            positionsToCheck.add(rightSidePosition);
+        if (movable instanceof Pacman) {
+            if (movable.getDirection() == MovementDirection.LEFT) {
+                positionsToCheck.add(leftSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.RIGHT) {
+                positionsToCheck.add(rightSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.UP) {
+                positionsToCheck.add(topSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.DOWN) {
+                positionsToCheck.add(bottomSidePosition);
+            }
+        } else {
+
+            if (movable.getDirection() == MovementDirection.LEFT) {
+                positionsToCheck.add(leftSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.RIGHT) {
+                positionsToCheck.add(rightSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.UP) {
+                positionsToCheck.add(topSidePosition);
+            }
+            if (movable.getDirection() == MovementDirection.DOWN) {
+                positionsToCheck.add(bottomSidePosition);
+            }
+
+            // if (movable.getDirection() != MovementDirection.LEFT) {
+            // positionsToCheck.add(rightSidePosition);
+            // }
+            // if (movable.getDirection() != MovementDirection.RIGHT) {
+            // positionsToCheck.add(leftSidePosition);
+            // }
+            // if (movable.getDirection() != MovementDirection.UP) {
+            // positionsToCheck.add(bottomSidePosition);
+            // }
+            // if (movable.getDirection() != MovementDirection.DOWN) {
+            // positionsToCheck.add(topSidePosition);
+            // }
         }
-        if (movable.getDirection() != MovementDirection.RIGHT) {
-            positionsToCheck.add(leftSidePosition);
-        }
-        if (movable.getDirection() != MovementDirection.UP) {
-            positionsToCheck.add(bottomSidePosition);
-        }
-        if (movable.getDirection() != MovementDirection.DOWN) {
-            positionsToCheck.add(topSidePosition);
-        }
+
 
         for (Vector2f position : positionsToCheck) {
             int mazeX2 = convertAbsoluteToRelativeCoordinateX(position.x, maze);
@@ -78,7 +127,7 @@ public class MovementUtils {
     }
 
 
-    public static boolean evaluateDots(Pacman pacman, Maze maze) {
+    public static boolean evaluateDots(Pacman pacman, List<Ghost> ghosts, Maze maze) {
 
         int newMazeX = getRelativeXLocationAfterStep(pacman, maze, pacman.getDirection());
         int newMazeY = getRelativeYLocationAfterStep(pacman, maze, pacman.getDirection());
@@ -95,12 +144,40 @@ public class MovementUtils {
 
 
             double distance = Math.hypot(newPacmanX - dotPositionX, newPacmanY - dotPositionY);
-            float distanceThreshold = (pacman.getDiameter()
-                    + (MazeLocationStatus.DOT.equals(mazeStatus) ? DOT_DIAMETER : SUPERDOT_DIAMETER));
+            float distanceThreshold = (pacman.getDiameter() + (MazeLocationStatus.DOT.equals(mazeStatus) ? DOT_SCALE : SUPERDOT_SCALE));
             if (distance < distanceThreshold * maze.SQUARE_LENGTH) {
                 pacman.setScore(pacman.getScore() + (MazeLocationStatus.DOT.equals(mazeStatus) ? DOT_SCORE : SUPERDOT_SCORE));
                 maze.setValue(newMazeX, newMazeY, MazeLocationStatus.EMPTY);
                 // TODO - superdot sideeffects
+                if (MazeLocationStatus.POWER_DOT.equals(mazeStatus)) {
+                    for (Ghost ghost : ghosts) {
+                        ghost.setStatus(GhostStatus.BLIND);
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean evaluateGhosts(Pacman pacman, List<Ghost> ghosts, Maze maze) {
+
+        for (Ghost ghost : ghosts) {
+            if (Math.hypot(ghost.getLocationX() - pacman.getLocationX(), ghost.getLocationY() - pacman.getLocationY()) < 1f) {
+                if (ghost.getStatus().equals(GhostStatus.BLIND)) {
+                    ghost.setLocation(ghost.getDefaultLocation());
+                    ghost.setStatus(GhostStatus.CHASE);
+                    pacman.setScore(pacman.getScore() + (GHOST_SCORE));
+                } else {
+                    pacman.setExtraLives(pacman.getExtraLives() - 1);
+                    pacman.setLocation(pacman.getDefaultLocation());
+                    for (Ghost ghost2 : ghosts) {
+                        ghost2.setLocation(ghost2.getDefaultLocation());
+                        ghost2.setStatus(GhostStatus.CHASE);
+                    }
+                }
                 return true;
             }
         }
@@ -111,6 +188,9 @@ public class MovementUtils {
     public static boolean canGhostChangeDirection(Ghost ghost, Maze maze) {
         boolean canMoveInCurrentDirection = canMove(ghost, maze);
         boolean isAtCrossRoad = isAtCrossRoad(ghost, maze);
+        // if (isAtCrossRoad) {
+        // MovementUtils.fixGhostPosition(ghost, maze);
+        // }
         return !canMoveInCurrentDirection || isAtCrossRoad;
     }
 
@@ -136,21 +216,31 @@ public class MovementUtils {
         }
 
         if (GhostStatus.CHASE.equals(ghost.getStatus())) {
-            float pacmanRelativeX = getRelativeXLocationAfterStep(pacman, maze, null);
-            float pacmanRelativeY = getRelativeYLocationAfterStep(pacman, maze, null);
+            int pacmanRelativeX = getRelativeXLocationAfterStep(pacman, maze, null);
+            int pacmanRelativeY = getRelativeYLocationAfterStep(pacman, maze, null);
+
+            int ghostRelativeX = getRelativeXLocationAfterStep(ghost, maze, null);
+            int ghostRelativeY = getRelativeYLocationAfterStep(ghost, maze, null);
+
+
+            Vector2i nextStep = ShortestMazePath.findNextStep(ghostRelativeX, ghostRelativeY, pacmanRelativeX, pacmanRelativeY);
 
             MovementDirection selectedDirection = null;
-            double minDistance = Integer.MAX_VALUE;
-            // find shortest path to pacman TODO
-            for (MovementDirection dir : availableDirections) {
-                int newMazeX = getRelativeXLocationAfterStep(ghost, maze, dir);
-                int newMazeY = getRelativeYLocationAfterStep(ghost, maze, dir);
-                double distance = Math.hypot(pacmanRelativeX - newMazeX, pacmanRelativeY - newMazeY);
-                if (distance + 0.1f < minDistance) {
-                    minDistance = distance;
-                    selectedDirection = dir;
-                }
+
+            if (nextStep.x > ghostRelativeX) {
+                selectedDirection = MovementDirection.RIGHT;
+            } else if (nextStep.x < ghostRelativeX) {
+                selectedDirection = MovementDirection.LEFT;
+            } else if (nextStep.y > ghostRelativeY) {
+                selectedDirection = MovementDirection.UP;
+            } else if (nextStep.y < ghostRelativeY) {
+                selectedDirection = MovementDirection.DOWN;
+            } else {
+                // random
+                int index = new Random().nextInt(availableDirections.size() - 1);
+                ghost.setDirection(availableDirections.get(index));
             }
+
 
             ghost.setDirection(selectedDirection);
 
@@ -199,7 +289,7 @@ public class MovementUtils {
         float mazeAbsolutX = convertRelativeXToAbsolute(ghostMazeX, maze);
         float mazeAbsolutY = convertRelativeYToAbsolute(ghostMazeY, maze);
 
-        if (Math.hypot(ghostAbsoluteX - mazeAbsolutX, ghostAbsoluteY - mazeAbsolutY) < (Maze.SQUARE_LENGTH * 0.25f)) {
+        if (Math.hypot(ghostAbsoluteX - mazeAbsolutX, ghostAbsoluteY - mazeAbsolutY) < (Maze.SQUARE_LENGTH * 0.3f)) {
             // ok
         } else {
             return false;
@@ -322,58 +412,6 @@ public class MovementUtils {
     public static float getAbsoluteXLocation(int indexX, Maze maze) {
         return (indexX - (float)maze.getColumns() / 2) * Maze.SQUARE_LENGTH;
     }
-
-    private static int getNewRelativeXLocation(float currentMazeX, MovementDirection direction) {
-        if (direction == null) {
-            return Math.round(currentMazeX);
-        }
-        switch (direction) {
-        case DOWN:
-            return Math.round(currentMazeX);
-        case LEFT:
-            return (int)Math.round(Math.floor(currentMazeX));
-        case RIGHT:
-            return (int)Math.round(Math.ceil(currentMazeX));
-        case UP:
-            return Math.round(currentMazeX);
-        }
-        return Math.round(currentMazeX);
-    }
-
-    // private static int getNewAbsoluteLocation(float currentMazeX, MovementDirection direction) {
-    // if (direction == null) {
-    // return Math.round(currentMazeX);
-    // }
-    // switch (direction) {
-    // case DOWN:
-    // return Math.round(currentMazeX);
-    // case LEFT:
-    // return (int)Math.round(Math.floor(currentMazeX));
-    // case RIGHT:
-    // return (int)Math.round(Math.ceil(currentMazeX));
-    // case UP:
-    // return Math.round(currentMazeX);
-    // }
-    // return Math.round(currentMazeX);
-    // }
-
-    private static int getNewRelativeYLocation(float currentMazeY, MovementDirection direction) {
-        if (direction == null) {
-            return Math.round(currentMazeY);
-        }
-        switch (direction) {
-        case DOWN:
-            return (int)Math.round(Math.floor(currentMazeY));
-        case LEFT:
-            return Math.round(currentMazeY);
-        case RIGHT:
-            return Math.round(currentMazeY);
-        case UP:
-            return (int)Math.round(Math.ceil(currentMazeY));
-        }
-        return Math.round(currentMazeY);
-    }
-
 
     public static void fixGhostPosition(Ghost ghost, Maze maze) {
 

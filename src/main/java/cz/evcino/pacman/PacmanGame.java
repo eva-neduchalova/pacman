@@ -4,14 +4,11 @@ import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MAJOR;
 import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MINOR;
 import static org.lwjgl.glfw.GLFW.GLFW_FALSE;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_F;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_L;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_T;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_UP;
 import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_1;
 import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_2;
@@ -50,7 +47,6 @@ import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
 import static org.lwjgl.opengl.GL11.GL_FILL;
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_FRONT_AND_BACK;
-import static org.lwjgl.opengl.GL11.GL_LINE;
 import static org.lwjgl.opengl.GL11.GL_LINEAR;
 import static org.lwjgl.opengl.GL11.GL_RGBA;
 import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
@@ -159,9 +155,6 @@ public class PacmanGame {
     private static final int NUMBER_OF_INSTANCES_GHOSTS = StringUtils
             .countMatches(Arrays.toString(ApplicationConstants.MAZE_DEFINITION_STRING), "G");
 
-    private static final int SIZEOF_GHOST_VERTEX = 6 * Float.BYTES;
-    private static final int COLOR_OFFSET = 3 * Float.BYTES;
-
     private static final int SIZEOF_MODEL_VERTEX = 8 * Float.BYTES;
     private static final int NORMAL_OFFSET = 3 * Float.BYTES;
     private static final int TEXCOORD_OFFSET = 6 * Float.BYTES;
@@ -189,10 +182,10 @@ public class PacmanGame {
 
 
     // model
-    private ObjLoader cubeModel;
-    private ObjLoader dot;
-    private ObjLoader ghost;
-    private ObjLoader pacman;
+    private ObjLoaderFullFaces cubeModel;
+    private ObjLoaderFullFaces dot;
+    private ObjLoaderFullFaces ghost;
+    private ObjLoaderFullFaces pacman;
 
     // our OpenGL resources
     private int cubeBuffer;
@@ -273,11 +266,6 @@ public class PacmanGame {
     private final int DOT_DATA_INDEX = 1;
     private int dotDataUBO;
 
-    // Light data uniform buffer
-    private final int GHOST_DATA_INDEX = 1;
-    private int ghostDataUBO;
-
-
     public static void main(String[] args) {
         new PacmanGame().run();
     }
@@ -346,27 +334,6 @@ public class PacmanGame {
                 }
             }
 
-
-            if (action == GLFW_RELEASE) {
-                // TODO - remove unused
-                switch (key) {
-                case GLFW_KEY_ESCAPE:
-                    glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-                    break;
-                case GLFW_KEY_A:
-                    animate = !animate;
-                    break;
-                case GLFW_KEY_T:
-                    // TODO toggle fullscreen
-                    break;
-                case GLFW_KEY_L:
-                    mode = GL_LINE;
-                    break;
-                case GLFW_KEY_F:
-                    mode = GL_FILL;
-                    break;
-                }
-            }
         });
 
         glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
@@ -451,12 +418,17 @@ public class PacmanGame {
                     MovementUtils.selectGhostDirection(ghost, pacmanCharacter, maze);
                 }
                 ghost.move();
-                MovementUtils.fixGhostPosition(ghost, maze);
             }
 
             if (MovementUtils.canMove(pacmanCharacter, maze)) {
-                boolean dotsUpdateRequired = MovementUtils.evaluateDots(pacmanCharacter, maze);
+                boolean dotsUpdateRequired = MovementUtils.evaluateDots(pacmanCharacter, ghosts, maze);
                 if (dotsUpdateRequired) {
+                    if (maze.getRemainingDotsCount() == 0) {
+                        init();
+                        initUniformBuffers();
+                        initPostprocessing();
+                        continue;
+                    }
                     addDotsAndPowerDotsOnBuffers(maze, dotDataBuffer);
                     glBindBuffer(GL_UNIFORM_BUFFER, dotDataUBO);
                     glBufferData(GL_UNIFORM_BUFFER, dotDataBuffer, GL_STATIC_DRAW);
@@ -464,6 +436,7 @@ public class PacmanGame {
                 }
                 pacmanCharacter.move();
             }
+            MovementUtils.evaluateGhosts(pacmanCharacter, ghosts, maze);
 
             render();
 
@@ -511,13 +484,14 @@ public class PacmanGame {
         int cubeCounter = 0;
         int x = 0;
         int y = 0;
+        ghosts.clear();
         for (String row : ApplicationConstants.MAZE_DEFINITION_STRING) {
             x = 0;
             for (char c : row.toCharArray()) {
                 Vector3f location = new Vector3f((x + offsetX) * Maze.SQUARE_LENGTH, (y + offsetY) * Maze.SQUARE_LENGTH, 0);
                 if ('X' == c) {
                     maze.setValue(x, y, MazeLocationStatus.WALL);
-                    new Matrix4f().translate(location).scale(1f,1f,0.25f).get(cubeCounter * 16, cubeDataBuffer);
+                    new Matrix4f().translate(location).scale(1f, 1f, 0.25f).get(cubeCounter * 16, cubeDataBuffer);
                     cubeCounter++;
                 } else if ('.' == c) {
                     maze.setValue(x, y, MazeLocationStatus.DOT);
@@ -533,9 +507,6 @@ public class PacmanGame {
                     maze.setValue(x, y, MazeLocationStatus.EMPTY);
                 } else if ('P' == c) {
                     // Pacman!
-                    if (pacmanCharacter != null) {
-                        throw new IllegalArgumentException("two (or more) Pacmans at one playground!");
-                    }
                     pacmanCharacter = new Pacman();
                     pacmanCharacter.setDefaultLocation(location);
                     pacmanCharacter.setLocation(location);
@@ -582,7 +553,7 @@ public class PacmanGame {
         // load ghost and fill buffer with ghost data
         ghost = ModelUtils.loadModelData("ghost.obj", ghostBuffer);
 
-        // load pacman and fill buffer with pacman data
+        // load pacman and fill buffer with pacman data TODO
         pacman = ModelUtils.loadModelData("pacman.obj", pacmanBuffer);
 
         // clear buffer binding, so that other code doesn't presume it (easier error detection)
@@ -629,10 +600,11 @@ public class PacmanGame {
             glBindBuffer(GL_ARRAY_BUFFER, ghostBuffer);
             glEnableVertexAttribArray(positionAttribLoc);
             glVertexAttribPointer(positionAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, 0);
-            glEnableVertexAttribArray(normalAttribLoc);
-            glVertexAttribPointer(normalAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, NORMAL_OFFSET);
+
             glEnableVertexAttribArray(texcoordAttribLoc);
             glVertexAttribPointer(texcoordAttribLoc, 2, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, TEXCOORD_OFFSET);
+            glEnableVertexAttribArray(normalAttribLoc);
+            glVertexAttribPointer(normalAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, NORMAL_OFFSET);
             // glEnableVertexAttribArray(colorAttribLoc);
             // glVertexAttribPointer(colorAttribLoc, 3, GL_FLOAT, false, SIZEOF_GHOST_VERTEX, COLOR_OFFSET);
         }
@@ -641,6 +613,7 @@ public class PacmanGame {
             // get pacman program attributes
             int positionAttribLoc = glGetAttribLocation(pacmanProgram, "position");
             int normalAttribLoc = glGetAttribLocation(pacmanProgram, "normal");
+            int texcoordAttribLoc = glGetAttribLocation(ghostProgram, "texcoord");
 
             // bind pacman buffer
             glBindVertexArray(pacmanArray);
@@ -649,6 +622,8 @@ public class PacmanGame {
             glVertexAttribPointer(positionAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, 0);
             glEnableVertexAttribArray(normalAttribLoc);
             glVertexAttribPointer(normalAttribLoc, 3, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, NORMAL_OFFSET);
+            glEnableVertexAttribArray(texcoordAttribLoc);
+            glVertexAttribPointer(texcoordAttribLoc, 2, GL_FLOAT, false, SIZEOF_MODEL_VERTEX, TEXCOORD_OFFSET);
 
         }
 
@@ -686,10 +661,10 @@ public class PacmanGame {
                 MazeLocationStatus status = maze.getValue(x, y);
                 Vector3f location = new Vector3f((x + offsetX) * Maze.SQUARE_LENGTH, (y + offsetY) * Maze.SQUARE_LENGTH, 0);
                 if (MazeLocationStatus.DOT.equals(status)) {
-                    new Matrix4f().translate(location).scale(MovementUtils.DOT_DIAMETER).get(dotsCounter * 16, dotDataBuffer);
+                    new Matrix4f().translate(location).scale(MovementUtils.DOT_SCALE).get(dotsCounter * 16, dotDataBuffer);
                     dotsCounter++;
                 } else if (MazeLocationStatus.POWER_DOT.equals(status)) {
-                    new Matrix4f().translate(location).scale(MovementUtils.SUPERDOT_DIAMETER).get(dotsCounter * 16, dotDataBuffer);
+                    new Matrix4f().translate(location).scale(MovementUtils.SUPERDOT_SCALE).get(dotsCounter * 16, dotDataBuffer);
                     dotsCounter++;
                 }
             }
@@ -839,7 +814,7 @@ public class PacmanGame {
         // ghosts
         for (Ghost ghostCharacter : ghosts) {
             Matrix4f ghostCharacterMV = new Matrix4f(view).translate(ghostCharacter.getLocation())
-                    .rotate((float)Math.toRadians(90), 1f, 0f, 0f).scale(Ghost.GHOST_DIAMETER);
+                    .rotate((float)Math.toRadians(90), 1f, 0f, 0f).scale(Ghost.GHOST_OBJECT_SCALE);
             if (MovementDirection.LEFT.equals(pacmanCharacter.getDirection())) {
                 ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(-90), 0f, 1f, 0f);
             } else if (MovementDirection.RIGHT.equals(pacmanCharacter.getDirection())) {
@@ -847,13 +822,13 @@ public class PacmanGame {
             } else if (MovementDirection.UP.equals(pacmanCharacter.getDirection())) {
                 ghostCharacterMV = ghostCharacterMV.rotate((float)Math.toRadians(180), 0f, 1f, 0f);
             }
-            drawGhost(ghostCharacterMV, projection, ghostArray, ghost.getTriangleCount() * 3, ghostCharacter.getColor());
+            drawGhost(ghostCharacterMV, projection, ghostArray, ghost.getTriangleCount() * 3, ghostCharacter.getApplicableColor());
         }
 
 
         // pacman
-        
-        
+
+
         Matrix4f pacmanMV = new Matrix4f(view).translate(pacmanCharacter.getLocation()).rotate((float)Math.toRadians(90), 1f, 0f, 0f);
         // after first rotation pacman is facing bottom of screen.scale(Pacman.PACMAN_DIAMETER);
         if (MovementDirection.LEFT.equals(pacmanCharacter.getDirection())) {
@@ -863,13 +838,13 @@ public class PacmanGame {
         } else if (MovementDirection.UP.equals(pacmanCharacter.getDirection())) {
             pacmanMV = pacmanMV.rotate((float)Math.toRadians(180), 0f, 1f, 0f);
         }
-        pacmanMV = pacmanMV.scale(Pacman.PACMAN_DIAMETER);
+        pacmanMV = pacmanMV.scale(Pacman.PACMAN_OBJECT_SCALE);
 
         drawPacman(pacmanMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.188f, 0.83921f, 0.784f));
         for (int i = 0; i < pacmanCharacter.getExtraLives(); i++) {
             float x = MovementUtils.getAbsoluteXLocation(-2, maze);
             float y = MovementUtils.getAbsoluteYLocation(i, maze);
-            Matrix4f pacmanLifeMV = new Matrix4f(view).translate(x, y, 0).scale(Pacman.PACMAN_DIAMETER);
+            Matrix4f pacmanLifeMV = new Matrix4f(view).translate(x, y, 0).scale(Pacman.PACMAN_OBJECT_SCALE);
             drawPacman(pacmanLifeMV, projection, pacmanArray, pacman.getTriangleCount() * 3, new Vector3f(0.188f, 0.83921f, 0.784f));
         }
 
@@ -957,7 +932,6 @@ public class PacmanGame {
 
         FloatBuffer projectionData = BufferUtils.createFloatBuffer(16);
         FloatBuffer viewData = BufferUtils.createFloatBuffer(16);
-        FloatBuffer modelData = BufferUtils.createFloatBuffer(16);
 
         projection.get(projectionData);
         view.get(viewData);
@@ -965,9 +939,6 @@ public class PacmanGame {
         glUniformMatrix4fv(dotProjectionLoc, false, projectionData);
         glUniformMatrix4fv(dotViewLoc, false, viewData);
 
-
-        // Task 5: change the draw call to be an instanced draw call glDrawArraysInstanced(int mode, int first, int count, int primcount)
-        // where primcount is the number of instances drawn
         glDrawArraysInstanced(GL_TRIANGLES, 0, count, NUMBER_OF_INSTANCES_DOTS + NUMBER_OF_INSTANCES_SUPERDOTS);
 
         glBindTexture(GL_TEXTURE_2D, 0);

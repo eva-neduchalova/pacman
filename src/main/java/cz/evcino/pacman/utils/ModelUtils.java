@@ -13,14 +13,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import cz.evcino.pacman.ApplicationConstants;
-import cz.evcino.pacman.ObjLoader;
+import cz.evcino.pacman.ObjLoaderFullFaces;
 
 public class ModelUtils {
 
     protected static final Logger logger = LoggerFactory.getLogger(ModelUtils.class);
 
-    public static ObjLoader loadModelData(String filename, int modelBuffer) {
-        ObjLoader model = new ObjLoader(ApplicationConstants.PATH_TO_MODELS + filename);
+    public static ObjLoaderFullFaces loadModelData(String filename, int modelBuffer) {
+        ObjLoaderFullFaces model = new ObjLoaderFullFaces(ApplicationConstants.PATH_TO_MODELS + filename);
         try {
             model.loadModel();
         } catch (IOException ex) {
@@ -35,11 +35,16 @@ public class ModelUtils {
             int[] ti = model.getTexcoordIndices().get(f);
             for (int i = 0; i < 3; i++) {
                 float[] position = model.getVertices().get(pi[i]);
-                float[] normal = model.getNormals().get(ni[i]);
-                float[] texcoord = model.getTexcoords().get(ti[i]);
                 modelData.put(position);
+                float[] normal = model.getNormals().get(ni[i]);
                 modelData.put(normal);
-                modelData.put(texcoord);
+               // if (!model.isNoFaceNormals()) {
+                    float[] texcoord = model.getTexcoords().get(ti[i]);
+                    modelData.put(texcoord);
+               // } else {
+                 //   modelData.put(-1);
+                //}
+
             }
         }
         modelData.rewind();

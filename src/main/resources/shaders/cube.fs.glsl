@@ -47,7 +47,7 @@ vec3 phong(vec3 matAmbientColor, vec3 matDiffuseColor, vec3 matSpecularColor, fl
     vec3 viewDirection = normalize(eyePosition - IN.vPosition);
     vec3 halfVector = normalize(lightDirection + viewDirection);
 
-    vec3 ambient = light.ambientColor.rgb * matAmbientColor;
+    vec3 ambient = light.ambientColor.rgb * matAmbientColor * 2;
 
     float diffuseFactor = max(dot(N, lightDirection), 0.0);
     vec3 diffuse = light.diffuseColor.rgb * matDiffuseColor * diffuseFactor;
